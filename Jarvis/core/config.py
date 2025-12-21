@@ -1,6 +1,10 @@
 from pathlib import Path
+import os
+
 
 class Config:
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-70b-8192")
     DEV_PASSWORD = "@64wg702"
     
     def __init__(self):
@@ -11,3 +15,8 @@ class Config:
 
         self.BASE_DIR = base_dir
         self.SANDBOX_DIR = base_dir / "Jarvis" / "sandbox"
+    
+    @staticmethod
+    def validate():
+        if not Config.GROQ_API_KEY:
+            raise RuntimeError("GROQ_API_KEY não definida no ambiente")

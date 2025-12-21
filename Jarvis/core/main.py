@@ -1,15 +1,14 @@
 
-from Jarvis.core.errors import JarvisError
 from Jarvis.core.config import Config
 from Jarvis.core.errors import ErrorManager
 from Jarvis.core.router import Router
 from Jarvis.core.context import ExecutionContext
 
 class Jarvis:
-    def __init__(self, config: Config | None = None):
+    def __init__(self, router, config: Config | None = None):
         self.config = config or Config()
         self.error_manager = ErrorManager(self.config)
-        
+        self.router = router
         self.context = ExecutionContext()
         self.router = Router(self.context)
         print("[Jarvis] Inicializando...")
@@ -32,5 +31,5 @@ class Jarvis:
                 print("[Jarvis] Encerrando sistema...")
                 break
 
-            resposta = self.router.route(user_input)
-            print(resposta)
+            result = self.router.route(user_input)
+            print(result)

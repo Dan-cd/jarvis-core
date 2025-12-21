@@ -33,3 +33,9 @@ class IntentEngine:
             return Intent(name="help")
 
         return None
+    
+@dataclass
+class IntentResult:
+    name: str
+    confidence: float
+    raw_text: str
