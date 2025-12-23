@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from enum import Enum
+from Jarvis.core.types import IntentType
+
 
 @dataclass
 class Intent:
@@ -33,6 +36,15 @@ class IntentEngine:
             return Intent(name="help")
 
         return None
+    def classify(self, user_input: str):
+        text = user_input.lower()
+
+        if any(kw in text for kw in ["lembra", "lembrar", "memória", "recorda", "recordar", "ultima conversa"]):
+            return IntentType.MEMORY_QUERY
+        
+        if text in ("ajuda", "help", "o que você pode fazer", "quais são suas capacidades", "como funciona"):
+            return IntentType.SYSTEM_HELP
+        return IntentType.UNKNOWN
     
 @dataclass
 class IntentResult:

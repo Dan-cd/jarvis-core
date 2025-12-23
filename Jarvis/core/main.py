@@ -9,8 +9,7 @@ class Jarvis:
         self.config = config or Config()
         self.error_manager = ErrorManager(self.config)
         self.router = router
-        self.context = ExecutionContext()
-        self.router = Router(self.context)
+        self.context = router.context
         print("[Jarvis] Inicializando...")
 
     def start(self):

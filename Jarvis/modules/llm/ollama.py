@@ -4,7 +4,7 @@ import ollama
 
 class OllamaLLM(BaseLLM):
 
-    def __init__(self, model="llama3"):
+    def __init__(self, model="phi"):
         self.model = model
 
     def generate(self, prompt: str, context: list) -> str:

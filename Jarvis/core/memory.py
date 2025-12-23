@@ -7,16 +7,18 @@ class Memory:
         self.path = Path(path)
         self.limit = limit
         self.path.parent.mkdir(parents=True, exist_ok=True)
+
         if not self.path.exists():
             self._save([])
 
     def _load(self) -> list:
-        with open(self.path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return json.loads(self.path.read_text(encoding="utf-8"))
 
     def _save(self, data: list):
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        self.path.write_text(
+            json.dumps(data[-self.limit:], indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
 
     def remember(self, role: str, content: str):
         memory = self._load()
@@ -25,19 +27,26 @@ class Memory:
             "content": content,
             "timestamp": datetime.now().isoformat()
         })
-        self._save(memory)
+        self._save(memory[-self.limit:])
 
     def recall(self) -> list:
         return self._load()
+    
 
-    def clear(self):
-        self._save([])
-
-    # Backwards-compatible API used by LLMRouter
-    def get_context(self) -> list:
+    def context(self) -> list:
         data = self._load()
-        return data[-self.limit:]
+        return [
+        {"role": m["role"], "content": m["content"]}
+        for m in data
+        ]
+    
+    def log_action(self, description: str):
+        data = self._load()
+        data.append({
+            "description": description,
+            "timestamp": datetime.now().isoformat()
+        })
+        self._save(data)
 
-    def add(self, user_text: str, assistant_text: str):
-        self.remember("user", user_text)
-        self.remember("assistant", assistant_text)
+    def get_recent_actions(self) -> list[str]:
+        return [item["description"] for item in self._load()]
