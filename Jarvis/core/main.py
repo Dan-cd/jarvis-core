@@ -1,16 +1,26 @@
 
 from Jarvis.core.config import Config
 from Jarvis.core.errors import ErrorManager
+from Jarvis.core.answer_pipeline import AnswerPipeline
+from Jarvis.core.LLMManager import LLMManager
 from Jarvis.core.router import Router
-from Jarvis.core.context import ExecutionContext
 
 class Jarvis:
-    def __init__(self, router, config: Config | None = None):
+    def __init__(self, router, executor, context, output_formatter ,config: Config | None = None):
         self.config = config or Config()
         self.error_manager = ErrorManager(self.config)
         self.router = router
         self.context = router.context
+        self.executor = executor
+        self.output_formatter = output_formatter
+        self.context = context
+
+
         print("[Jarvis] Inicializando...")
+        try:
+            print(f"[Jarvis] Groq model: {self.config.GROQ_MODEL}")
+        except Exception:
+            pass
 
     def start(self):
         print("[Jarvis] Sistema iniciado.")
@@ -30,5 +40,8 @@ class Jarvis:
                 print("[Jarvis] Encerrando sistema...")
                 break
 
-            result = self.router.route(user_input)
-            print(result)
+            decision = self.router.route(user_input)
+            raw_response = self.executor.execute(decision, user_input)
+            final_output = self.output_formatter.format(raw_response)
+
+            print(final_output)
