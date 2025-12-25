@@ -1,16 +1,24 @@
-from dotenv import load_dotenv
-load_dotenv()
+from Jarvis.core.bootstrap import bootstrap_env
+bootstrap_env()
+
+from Jarvis.core.context import ExecutionContext
+
+ExecutionContext()
 
 from groq import Groq
 from Jarvis.core.memory import Memory
 from Jarvis.core.LLMManager import LLMManager
-from Jarvis.core.answer_pipeline import AnswerPipeline
 from Jarvis.core.router import Router
 from Jarvis.core.context import ExecutionContext
 from Jarvis.core.main import Jarvis
 from Jarvis.modules.llm.groq import GroqLLM
 from Jarvis.modules.llm.ollama import OllamaLLM
 from Jarvis.core.config import Config
+from Jarvis.core.output_formatter import OutputFormatter
+from Jarvis.core.executor import Executor
+from Jarvis.core.answer_pipeline import AnswerPipeline
+from Jarvis.sandbox import SandboxHandler
+sandbox = SandboxHandler()
 
 Config.validate()
 
@@ -26,18 +34,29 @@ llm_manager = LLMManager(
     primary_llm=primary_llm
 )
 
-answer_pipeline = AnswerPipeline(llm_manager)
 
 router = Router(
-    llm_manager=llm_manager,
-    sandbox=None,
     context=context,
+    sandbox=sandbox,
     memory=memory,
-    answer_pipeline=answer_pipeline
+)
+
+executor = Executor(
+    llm=llm_manager,
+    fallback=fallback_llm,
+    sandbox=sandbox,
+    memory=memory,
+    context=context,
+    answer_pipeline=AnswerPipeline(llm_manager)
 )
 
 def main():
-    jarvis = Jarvis(router=router)
+    jarvis = Jarvis(
+    router=router,
+    executor=executor,
+    output_formatter=OutputFormatter(context),
+    context=context
+)
     jarvis.start()
 
 if __name__ == "__main__":
