@@ -1,6 +1,7 @@
 from Jarvis.core.intent import IntentEngine
 from Jarvis.core.policy import PolicyEngine, PolicyResult
 from Jarvis.core.decision import Decision, DecisionOutcome, DecisionPath
+from Jarvis.core.dev_mode_guard import DevModeGuard
 
 
 class Router:
@@ -33,23 +34,29 @@ class Router:
 
         decision = self.policy_engine.evaluate(intent)
 
-        if decision.result == PolicyResult.REQUIRE_DEV_MODE:
+        if intent.name == "dev.enter":
+            if self.context.dev_mode:
+                return Decision.final(
+                    DecisionOutcome.DENY,
+                    "Modo desenvolvedor já está ativo."
+                )
+
             return Decision.final(
                 DecisionOutcome.REQUIRE_DEV_MODE,
-                decision.reason or "Modo desenvolvedor necessário."
+                "Senha do modo desenvolvedor necessária."
             )
 
-        if decision.result == PolicyResult.DENY:
-            return Decision.final(
-                DecisionOutcome.DENY,
-                decision.reason or "Ação não permitida."
-            )
-
-        if intent.name.startswith("dev."):
-            return Decision.route(
-                DecisionPath.SANDBOX,
-                payload=intent
+        if intent.name == "dev.exit":
+            if not self.context.dev_mode:
+                return Decision.final(
+                    DecisionOutcome.DENY,
+                    "Modo desenvolvedor não está ativo."
                 )
+
+            return Decision.final(
+                DecisionOutcome.ALLOW,
+                reason="Modo desenvolvedor desativado."
+)
         
         if decision.result == PolicyResult.ALLOW:
             pass

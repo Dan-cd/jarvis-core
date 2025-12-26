@@ -18,21 +18,20 @@ from Jarvis.core.output_formatter import OutputFormatter
 from Jarvis.core.executor import Executor
 from Jarvis.core.answer_pipeline import AnswerPipeline
 from Jarvis.sandbox import SandboxHandler
-sandbox = SandboxHandler()
+from Jarvis.core.dev_mode_guard import DevModeGuard
 
 Config.validate()
 
 context = ExecutionContext()
+sandbox = SandboxHandler(context)
 memory = Memory()
 
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
-primary_llm = GroqLLM(client=groq_client)
+primary_llm = GroqLLM()
 fallback_llm = OllamaLLM(model="phi")
 
-llm_manager = LLMManager(
-    primary_llm=primary_llm
-)
+llm_manager = LLMManager()
 
 
 router = Router(
@@ -47,7 +46,8 @@ executor = Executor(
     sandbox=sandbox,
     memory=memory,
     context=context,
-    answer_pipeline=AnswerPipeline(llm_manager)
+    answer_pipeline=AnswerPipeline(llm_manager),
+    DevModeGuard=DevModeGuard(password=Config.DEV_MODE_PASSWORD)
 )
 
 def main():

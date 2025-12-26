@@ -1,6 +1,6 @@
 class ExecutionContext:
-    def __init__(self, llm_available: bool = True):
-        self.dev_mode: bool = False
+    def __init__(self, llm_available: bool = True, dev_mode: bool = False):
+        self.dev_mode = dev_mode
         self.permissions: set[str] = set()
         self.llm_available: bool = llm_available
 

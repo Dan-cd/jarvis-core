@@ -1,19 +1,31 @@
-from Jarvis.modules.llm.base import BaseLLM
-from Jarvis.core.config import Config
+import os
+from groq import Groq
+from Jarvis.core.llm_contract import (
+    LLMInterface,
+    LLMRequest,
+    LLMResponse,
+)
 
+class GroqLLM(LLMInterface):
+    def __init__(self):
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self.model = "llama-3.3-70b-versatile"
 
-class GroqLLM(BaseLLM):
+    def generate(self, request: LLMRequest) -> LLMResponse:
+        messages = [
+            {"role": "system", "content": request.system_rules},
+            {"role": "user", "content": request.prompt},
+        ]
 
-    def __init__(self, client, model: str | None = None):
-        self.client = client
-        self.model = model or Config.GROQ_MODEL
-
-    def generate(self, prompt: str, context: list) -> str:
-        messages = context + [{"role": "user", "content": prompt}]
-
-        response = self.client.chat.completions.create(
+        completion = self.client.chat.completions.create(
             model=self.model,
-            messages=messages
+            messages=messages,
+            max_tokens=request.max_tokens,
         )
 
-        return response.choices[0].message.content
+        text = completion.choices[0].message.content.strip()
+
+        return LLMResponse(
+            text=text,
+            raw=completion.model_dump(),
+        )

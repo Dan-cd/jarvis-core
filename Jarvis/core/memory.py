@@ -27,6 +27,7 @@ class Memory:
             "content": content,
             "timestamp": datetime.now().isoformat()
         })
+        
         self._save(memory[-self.limit:])
 
     def recall(self) -> list:
