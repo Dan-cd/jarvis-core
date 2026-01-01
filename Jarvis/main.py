@@ -4,9 +4,8 @@ bootstrap_env()
 from Jarvis.core.context import ExecutionContext
 
 ExecutionContext()
-
+import Jarvis.plugins_available.filesystem
 from groq import Groq
-from Jarvis.core.memory import Memory
 from Jarvis.core.LLMManager import LLMManager
 from Jarvis.core.router import Router
 from Jarvis.core.context import ExecutionContext
@@ -19,12 +18,29 @@ from Jarvis.core.executor import Executor
 from Jarvis.core.answer_pipeline import AnswerPipeline
 from Jarvis.sandbox import SandboxHandler
 from Jarvis.core.dev_mode_guard import DevModeGuard
+from Jarvis.core.memory.store import MemoryStore
+from Jarvis.core.memory.manager import MemoryManager
+from Jarvis.core.memory.models import MemoryType
+from Jarvis.core.dev_mode_guard import DevModeGuard
+from Jarvis.plugins.loader import load_plugins
+load_plugins()
+
+dev_guard = DevModeGuard(
+    password=Config.DEV_MODE_PASSWORD
+)
+
+memory_store = MemoryStore()
+memory_manager = MemoryManager(memory_store)
+
+# EXEMPLO DE USO (mais tarde vem do Intent + Router)
+user_explicitly_requested = True
+
 
 Config.validate()
 
 context = ExecutionContext()
 sandbox = SandboxHandler(context)
-memory = Memory()
+memory_manager = MemoryManager(memory_store)
 
 groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
@@ -35,19 +51,17 @@ llm_manager = LLMManager()
 
 
 router = Router(
-    context=context,
-    sandbox=sandbox,
-    memory=memory,
+    context=context
 )
 
 executor = Executor(
     llm=llm_manager,
     fallback=fallback_llm,
     sandbox=sandbox,
-    memory=memory,
+    memory=memory_manager,
     context=context,
     answer_pipeline=AnswerPipeline(llm_manager),
-    DevModeGuard=DevModeGuard(password=Config.DEV_MODE_PASSWORD)
+    dev_guard=dev_guard
 )
 
 def main():

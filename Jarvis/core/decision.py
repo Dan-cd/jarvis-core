@@ -14,7 +14,7 @@ class DecisionPath(Enum):
     FALLBACK = auto()
     SANDBOX = auto()
     LOCAL = auto()
-
+    PLUGIN = auto()
 
 @dataclass
 class Decision:

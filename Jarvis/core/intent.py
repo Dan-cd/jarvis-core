@@ -1,53 +1,105 @@
-from dataclasses import dataclass
-from enum import Enum
-from Jarvis.core.types import IntentType
+from enum import Enum, auto
+from dataclasses import dataclass, field
+
+MEMORY_VERBS = [
+    "salve",
+    "guarde",
+    "lembre",
+    "memorize",
+    "grave"
+]
+
+MEMORY_KEYWORDS = [
+    "memória",
+    "memoria"
+]
+MEMORY_READ_PATTERNS = [
+    "qual é meu nome",
+    "qual meu nome",
+    "como me chamo",
+    "quem sou eu",
+    "o que você lembra",
+    "o que você lembra de mim",
+    "voce lembra de mim",
+]
+
+class IntentType(Enum):
+    MEMORY_WRITE = "memory.write"
+    MEMORY_READ = "memory.read"
+
+    DEV_ENTER = auto()
+    DEV_EXIT = auto()
+
+    FILE_CREATE = auto()
+    FILE_READ = auto()
+    FILE_READ_PDF = auto()
+    FILE_DELETE = auto()
+    FILE_MOVE = auto()
+    FILE_EDIT = auto()
+
+    HELP = auto()
+    UNKNOWN = auto()
 
 
-@dataclass
+@dataclass(frozen=True)
 class Intent:
-    def __init__(self, name: str, raw: str = ""):
-        self.name = name
-        self.raw = raw 
+    type: IntentType
+    raw: str
+    payload: dict = field(default_factory=dict)
+
 
 class IntentEngine:
+    """
+    V5 — IntentEngine puro.
+    Apenas identifica intenção.
+    """
+
     def parse(self, text: str) -> Intent | None:
-        text = text.lower().strip()
+        raw = text.strip()
+        lower = raw.lower()
 
-        if "dev" in text and ("enter" in text or "entrar" in text):
-            return Intent(name="dev.enter")
-        if "plugin" in text and "create" in text:
-            return Intent(name="dev.create_plugin")
-        INTENTS = {
-        "entrar no dev mode": "dev.enter",
-        "sair do dev mode": "dev.exit",
-        "criar plugin": "dev.create_plugin",
-        }
+        if not raw:
+            return None
 
-        if text in INTENTS:
-            return Intent(
-                name=INTENTS[text],
-                raw=text
-            )
+        # DEV MODE
+        if "dev" in lower and any(k in lower for k in ("entrar", "enter")):
+            return Intent(IntentType.DEV_ENTER, raw)
 
-        if "dev" in text and ("exit" in text or "sair" in text):
-            return Intent(name="dev.exit")
+        if "dev" in lower and any(k in lower for k in ("sair", "exit")):
+            return Intent(IntentType.DEV_EXIT, raw)
 
-        if text in ("help", "ajuda"):
-            return Intent(name="help")
-
-        return None
-    def classify(self, user_input: str):
-        text = user_input.lower()
-
-        if any(kw in text for kw in ["lembra", "lembrar", "memória", "recorda", "recordar", "ultima conversa"]):
-            return IntentType.MEMORY_QUERY
+        # MEMORY — vem ANTES de filesystem
+        if any(v in lower for v in MEMORY_VERBS):
+            return Intent(IntentType.MEMORY_WRITE, raw)
         
-        if text in ("ajuda", "help", "o que você pode fazer", "quais são suas capacidades", "como funciona"):
-            return IntentType.SYSTEM_HELP
-        return IntentType.UNKNOWN
-    
-@dataclass
-class IntentResult:
-    name: str
-    confidence: float
-    raw_text: str
+
+        if any(p in lower for p in MEMORY_READ_PATTERNS):
+            return Intent(IntentType.MEMORY_READ, raw)
+
+            
+        if any(k in lower for k in (
+            "o que você lembra",
+            "suas memórias",
+            "liste memórias",
+            "qual é meu nome",
+            "o que você lembra de mim"
+        )):
+            return Intent(IntentType.MEMORY_READ, raw)
+
+        # FILESYSTEM
+        if any(k in lower for k in ("ler", "leia", "abrir", "mostrar", "abra")):
+            return Intent(IntentType.FILE_READ, raw)
+
+        if any(k in lower for k in ("criar", "crie", "salvar")):
+            return Intent(IntentType.FILE_CREATE, raw)
+
+        if any(k in lower for k in ("editar", "alterar", "adicionar", "modificar", "edite")):
+            return Intent(IntentType.FILE_EDIT, raw)
+
+        if any(k in lower for k in ("apagar", "excluir", "deletar", "delete", "exclua", "apague")):
+            return Intent(IntentType.FILE_DELETE, raw)
+
+        if any(k in lower for k in ("mover", "transferir", "mova", "transfira")):
+            return Intent(IntentType.FILE_MOVE, raw)
+
+        return Intent(IntentType.UNKNOWN, raw)
