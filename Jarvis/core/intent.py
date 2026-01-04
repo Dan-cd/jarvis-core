@@ -32,7 +32,7 @@ class IntentType(Enum):
 
     FILE_CREATE = auto()
     FILE_READ = auto()
-    FILE_READ_PDF = auto()
+    FILE_PDF_READ = auto()
     FILE_DELETE = auto()
     FILE_MOVE = auto()
     FILE_EDIT = auto()
@@ -89,6 +89,8 @@ class IntentEngine:
         # FILESYSTEM
         if any(k in lower for k in ("ler", "leia", "abrir", "mostrar", "abra")):
             return Intent(IntentType.FILE_READ, raw)
+        if any(k in lower for k in (".pdf", "ler", "pdf", "leia", "resumo pdf", "resumo do pdf")):
+            return Intent(IntentType.FILE_PDF_READ, raw)
 
         if any(k in lower for k in ("criar", "crie", "salvar")):
             return Intent(IntentType.FILE_CREATE, raw)

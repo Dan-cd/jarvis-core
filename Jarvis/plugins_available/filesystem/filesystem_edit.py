@@ -7,41 +7,63 @@ from Jarvis.core.intent import IntentType
 
 class FilesystemEditPlugin(Plugin):
     """
-    Plugin responsável por edição (append) de arquivos.
+    Plugin responsável por edição de arquivos locais.
     """
 
     INTENT = IntentType.FILE_EDIT
 
     metadata = {
         "name": "filesystem_edit",
-        "version": "3.0",
+        "version": "3.1",
         "description": "Edição segura de arquivos locais",
         "capabilities": ["filesystem.edit"],
         "risk_level": "medium",
         "dev_only": False
     }
 
-    def execute(self, action: ActionRequest) -> ActionResult:
+    def execute(self, action: ActionRequest, dry_run: bool = False) -> ActionResult:
         filename = action.params.get("filename")
-        content = action.params.get("content")
+        content_to_add = action.params.get("content")
 
-        if not filename or not content:
-            return ActionResult(False, "Parâmetros insuficientes para edição.")
+        if not filename or not content_to_add:
+            return ActionResult(False, "Arquivo ou conteúdo não informado.")
 
-        path = resolve_file_humanized(filename)
+        paths = resolve_file_humanized(filename)
 
-        if not path or not path.exists():
+        if not paths:
             return ActionResult(False, "Arquivo não encontrado.")
+
+        if len(paths) > 1:
+            return ActionResult(
+                False,
+                "Encontrei múltiplos arquivos com esse nome:\n"
+                + "\n".join(f"- {p}" for p in paths)
+                + "\nSeja mais específico."
+            )
+
+        path = paths[0]
+
+        if not path.exists() or not path.is_file():
+            return ActionResult(False, "Arquivo inválido ou não encontrado.")
+
+        if dry_run:
+            return ActionResult(
+                True,
+                f"--- PREVIEW: Edição ---\n"
+                f"Arquivo: {path}\n\n"
+                f"+ {content_to_add}\n"
+                f"-----------------------"
+            )
 
         try:
             with path.open("a", encoding="utf-8") as f:
-                f.write("\n" + content)
+                f.write("\n" + content_to_add)
         except Exception as e:
             return ActionResult(False, f"Erro ao editar arquivo: {e}")
 
         return ActionResult(
             True,
-            f"Arquivo '{filename}' editado com sucesso."
+            f"Arquivo '{path.name}' editado com sucesso."
         )
 
 

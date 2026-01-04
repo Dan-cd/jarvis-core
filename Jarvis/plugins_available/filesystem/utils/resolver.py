@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 
 SEARCH_BASES = [
@@ -11,39 +11,55 @@ SEARCH_BASES = [
     Path.home() / "Music",
     Path.home() / "Public",
     Path.home() / "Templates",
-    Path.home() / ".jarvis" / "files",
     Path.home(),
 ]
 
 MAX_DEPTH = 4
 
 
-def resolve_file_humanized(filename: str, expect_file: bool = True) -> Path | None:
-    if not filename:
-        return None
-    if not expect_file and filename.endswith("/"):
-        filename = filename[:-1]
+def resolve_file_humanized(
+    name: str,
+    *,
+    must_exist: bool = True
+) -> List[Path]:
+    results: List[Path] = []
 
-    filename = filename.strip().strip('"').strip("'")
+    if not name:
+        return results
 
-    #  Caminho absoluto
-    direct = Path(filename)
-    if direct.is_absolute() and direct.exists():
-        return direct
+    name = name.strip().strip('"').strip("'")
 
-    #  Busca direta nos locais prioritários
+    direct = Path(name)
+
+    # Caminho absoluto
+    if direct.is_absolute():
+        if direct.exists():
+            return [direct]
+        return [] if must_exist else [direct]
+
+    # Busca direta nos locais conhecidos
     for base in SEARCH_BASES:
-        candidate = base / filename
+        candidate = base / name
         if candidate.exists():
-            return candidate
+            results.append(candidate)
 
-    #  Busca controlada por nome (sem rglob solto)
+    if results:
+        return results
+
+    # Busca controlada (fuzzy simples)
     for base in SEARCH_BASES:
-        found = _search_by_name(base, filename, MAX_DEPTH)
-        if found:
-            return found
+        found = _search_by_name(base, name, MAX_DEPTH)
+        if found and found not in results:
+            results.append(found)
 
-    return None
+    if results:
+        return results
+
+    # Se não precisa existir, sugerimos local padrão
+    if not must_exist:
+        return [Path.cwd() / name]
+
+    return []
 
 
 def _search_by_name(base: Path, filename: str, max_depth: int) -> Path | None:
@@ -53,7 +69,6 @@ def _search_by_name(base: Path, filename: str, max_depth: int) -> Path | None:
                 return path
     except PermissionError:
         return None
-
     return None
 
 

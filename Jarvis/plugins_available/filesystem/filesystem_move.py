@@ -1,71 +1,73 @@
 import shutil
 from pathlib import Path
-
 from Jarvis.plugins.base import Plugin
 from Jarvis.core.action_request import ActionRequest
 from Jarvis.core.action_result import ActionResult
-from Jarvis.plugins_available.filesystem.utils.resolver import resolve_file_humanized
-from Jarvis.core.intent import IntentType
-import shutil
-from pathlib import Path
-
-from Jarvis.plugins.base import Plugin
-from Jarvis.core.action_request import ActionRequest
-from Jarvis.core.action_result import ActionResult
+from Jarvis.core.action_plan import ActionPlan
 from Jarvis.plugins_available.filesystem.utils.resolver import resolve_file_humanized
 from Jarvis.core.intent import IntentType
 
 
 class FilesystemMovePlugin(Plugin):
     """
-    Plugin responsável por mover arquivos locais.
-    Não interpreta linguagem natural.
-    Recebe parâmetros já resolvidos.
+    Movimentação segura de arquivos.
+    Sempre passa por confirmação.
     """
 
     INTENT = IntentType.FILE_MOVE
 
     metadata = {
         "name": "filesystem_move",
-        "version": "3.0",
-        "description": "Movimentação segura de arquivos locais",
+        "version": "5.0",
+        "description": "Movimentação segura e confirmável de arquivos",
         "capabilities": ["filesystem.move"],
         "risk_level": "medium",
-        "dev_only": False
+        "requires_confirmation": True,
+        "supports_dry_run": True,
     }
 
-    def execute(self, action: ActionRequest) -> ActionResult:
+    def execute(self, action: ActionRequest, dry_run: bool = True):
         filename = action.params.get("filename")
-        source = action.params.get("source")
-        target = action.params.get("target")
+        destination = action.params.get("target") or action.params.get("destination")
 
-        if not filename or not target:
-            return ActionResult(False, "Parâmetros insuficientes para mover o arquivo.")
+        if not filename or not destination:
+            return ActionResult(False, "Arquivo ou destino não informado.")
 
-        source_path = resolve_file_humanized(
-            f"{source}/{filename}" if source else filename
-        )
+        sources = resolve_file_humanized(filename, must_exist=True)
+        dest_candidates = resolve_file_humanized(destination, must_exist=False)
 
-        if not source_path or not source_path.exists():
-            return ActionResult(False, "Arquivo não encontrado.")
+        if not sources:
+            return ActionResult(False, "Arquivo de origem não encontrado.")
 
-        target_dir = resolve_file_humanized(target, expect_file=False)
+        dest_base = dest_candidates[0]
 
-        if not target_dir or not target_dir.exists():
-            return ActionResult(False, "Diretório de destino inválido.")
+        targets = [dest_base / src.name for src in sources]
 
-        target_path = target_dir / source_path.name
+        if dry_run:
+            description = (
+                "Mover os seguintes arquivos:\n"
+                + "\n".join(f"- {src} → {dest}" for src, dest in zip(sources, targets))
+            )
+            return ActionPlan(
+                action="filesystem.move",
+                targets=sources,
+                destructive=False,
+                description=description,
+            )
 
-        if target_path.exists():
-            return ActionResult(False, "Já existe um arquivo com esse nome no destino.")
+        # Execução real
+        errors = []
+        for src, dest in zip(sources, targets):
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dest))
+            except Exception as e:
+                errors.append(f"{src} → {dest}: {e}")
 
-        try:
-            shutil.move(str(source_path), str(target_path))
-        except Exception as e:
-            return ActionResult(False, f"Erro ao mover arquivo: {e}")
+        if errors:
+            return ActionResult(False, "Erros ao mover arquivos:\n" + "\n".join(errors))
 
-        return ActionResult(True, f"Arquivo movido para {target_path}")
+        return ActionResult(True, f"{len(sources)} arquivo(s) movido(s) com sucesso.")
 
 
 PLUGIN_CLASS = FilesystemMovePlugin
-

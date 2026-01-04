@@ -4,7 +4,6 @@ bootstrap_env()
 from Jarvis.core.context import ExecutionContext
 
 ExecutionContext()
-import Jarvis.plugins_available.filesystem
 from groq import Groq
 from Jarvis.core.LLMManager import LLMManager
 from Jarvis.core.router import Router
@@ -75,5 +74,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

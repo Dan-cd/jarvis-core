@@ -4,7 +4,12 @@ from Jarvis.core.action_result import ActionResult
 
 
 class Plugin(ABC):
-    metadata = {}
+    metadata = {
+        "name": "filesystem",
+        "destructive": True,
+        "supports_dry_run": True,
+        "requires_confirmation": True
+    }
 
     @abstractmethod
     def execute(self, action: ActionRequest) -> ActionResult:
