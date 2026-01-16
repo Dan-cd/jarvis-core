@@ -1,12 +1,9 @@
 
 from Jarvis.core.config import Config
 from Jarvis.core.errors import ErrorManager
-from Jarvis.core.answer_pipeline import AnswerPipeline
-from Jarvis.core.LLMManager import LLMManager
-from Jarvis.core.router import Router
 
 class Jarvis:
-    def __init__(self, router, executor, context, output_formatter ,config: Config | None = None):
+    def __init__(self, router, executor, context, output_formatter, config: Config | None = None):
         self.config = config or Config()
         self.error_manager = ErrorManager(self.config)
         self.router = router
@@ -14,7 +11,6 @@ class Jarvis:
         self.executor = executor
         self.output_formatter = output_formatter
         self.context = context
-
 
         print("[Jarvis] Inicializando...")
         try:
@@ -30,6 +26,8 @@ class Jarvis:
         print("[Jarvis] Aguardando comandos... (digite 'exit' para encerrar)")
 
         while True:
+            
+
             prefix = "[DEV] " if self.context.dev_mode else ""
             user_input = input(f"{prefix}> ").strip()
 

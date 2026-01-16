@@ -12,7 +12,7 @@ class FilesystemReadPlugin(Plugin):
     Plugin responsável por leitura de arquivos locais.
     """
 
-    INTENT = IntentType.FILE_READ
+    intents = {IntentType.CONTENT_READ}
 
     metadata = {
         "name": "filesystem_read",

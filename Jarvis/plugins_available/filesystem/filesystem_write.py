@@ -12,7 +12,7 @@ class FilesystemWritePlugin(Plugin):
     Sempre pede confirmação.
     """
 
-    INTENT = IntentType.FILE_CREATE
+    intents = {IntentType.CONTENT_CREATE}
 
     metadata = {
         "name": "filesystem_write",

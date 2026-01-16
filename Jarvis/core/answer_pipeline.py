@@ -1,78 +1,51 @@
-from Jarvis.core.llm_contract import (
-    LLMRequest,
-    LLMVerbosity,
-)
+from Jarvis.core.llm_contract import LLMRequest, LLMVerbosity
 from Jarvis.core.context import ExecutionContext
+from Jarvis.plugins_available.web.models import WebResult
 
 
 class AnswerPipeline:
-    """
-    Controla completamente:
-    - O tom
-    - A verbosidade
-    - O que o LLM pode ou não afirmar
-    """
-
-    def __init__(self, llm):
+    def __init__(self, llm, execution_memory):
         self.llm = llm
+        self.execution_memory = execution_memory
 
     def respond(self, user_input: str, context: ExecutionContext) -> str:
-        """
-        Usado SOMENTE quando a resposta vem do LLM.
-        Plugins e executor não passam por aqui.
-        """
+        return self._respond_internal(user_input, context, None)
 
-        
-        #  MODO DE RESPOSTA
-        
+    def respond_with_web(self, user_input: str, web_data: WebResult, context: ExecutionContext) -> str:
+        return self._respond_internal(user_input, context, web_data)
 
-        if context.dev_mode:
-            verbosity = LLMVerbosity.SHORT
-            max_tokens = 500
-        else:
-            verbosity = LLMVerbosity.NORMAL
-            max_tokens = 3000
+    def _respond_internal(self, user_input, context, web_result):
+        source = self.execution_memory.get("last_source", "local")
+        confidence = self.execution_memory.get("last_confidence")
 
-       
-        #  REGRAS DURAS
-       
+        verbosity = LLMVerbosity.SHORT if context.dev_mode else LLMVerbosity.NORMAL
+        max_tokens = 400 if context.dev_mode else 1800
 
         system_rules = (
             "Você é o Jarvis.\n"
-            "Fale como um mordomo neutro, direto e educado.\n"
-            "Nunca afirme que executou ações reais.\n"
-            "Nunca diga que criou, editou ou apagou arquivos.\n"
-            "Nunca finja acesso ao sistema do usuário.\n"
-            "Nunca mencione arquitetura interna, APIs ou custos.\n"
+            "Você é um sistema executor.\n"
+            "Nunca diga que foi treinado com dados.\n"
+            "Nunca afirme acesso genérico à internet.\n"
+            "Nunca diga que não sabe a origem da informação.\n"
+            "Sempre explique a origem com base no sistema Jarvis.\n"
         )
 
-        if context.dev_mode:
-            system_rules += (
-                "Modo desenvolvedor ativo:\n"
-                "- Seja extremamente direto.\n"
-                "- Sem rodeios ou explicações longas.\n"
-                "- Pode comentar decisões internas do sistema.\n"
-            )
-
-        
-        #  REQUEST AO LLM
-        
+        if source == "web":
+            system_rules += "Esta resposta veio de uma busca web.\n"
+        elif source == "memory":
+            system_rules += "Esta resposta veio da memória do usuário.\n"
+        elif source == "plugin":
+            system_rules += "Esta resposta foi produzida por um plugin local.\n"
+        elif source == "llm":
+            system_rules += "Esta resposta foi gerada por raciocínio interno.\n"
 
         request = LLMRequest(
             prompt=user_input,
             system_rules=system_rules,
             verbosity=verbosity,
             max_tokens=max_tokens,
+            context_data={"web": web_result.__dict__ if web_result else None}
         )
 
         response = self.llm.generate(request)
-
-        return self._hard_cut(response.text, context)
-
-   
-    #  CORTE DURO
-    
-
-    def _hard_cut(self, text: str, context: ExecutionContext) -> str:
-        max_chars = 250 if context.dev_mode else 800
-        return text[:max_chars].strip()
+        return response.text.strip()

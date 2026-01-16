@@ -1,0 +1,7 @@
+"filename", "language", "Python", "comment", "blank", "total"
+"/home/danvic/JARVIS/Jarvis/core/executor.py", "Python", 10, 0, 8, 18
+"/home/danvic/JARVIS/Jarvis/core/intent.py", "Python", 3, 0, 1, 4
+"/home/danvic/JARVIS/Jarvis/core/memory/execution_memory.py", "Python", 3, 0, 0, 3
+"/home/danvic/JARVIS/Jarvis/core/memory/temp_memory.py", "Python", 5, 14, -3, 16
+"/home/danvic/JARVIS/Jarvis/core/router.py", "Python", -5, 0, 0, -5
+"Total", "-", 16, 14, 6, 36

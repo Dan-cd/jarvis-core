@@ -34,8 +34,8 @@ class PolicyEngine:
     def evaluate_action(self, action: ActionRequest, dev_mode: bool) -> PolicyDecision:
         if action.risk == "high" and not dev_mode:
             return PolicyDecision(
-                PolicyResult.REQUIRE_DEV_MODE,
-                "Ação sensível requer modo desenvolvedor."
+                result=PolicyResult.DENY,
+                reason="Ação sensível requer modo desenvolvedor."
             )
 
         if action.action.startswith("filesystem.delete") and not dev_mode:
@@ -44,5 +44,5 @@ class PolicyEngine:
                 "Exclusão de arquivos requer modo desenvolvedor."
             )
 
-        return PolicyDecision(PolicyResult.ALLOW)
+        return PolicyDecision(result=PolicyResult.ALLOW)
 

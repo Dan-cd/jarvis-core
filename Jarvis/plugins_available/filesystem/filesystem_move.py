@@ -14,7 +14,7 @@ class FilesystemMovePlugin(Plugin):
     Sempre passa por confirmação.
     """
 
-    INTENT = IntentType.FILE_MOVE
+    intents = {IntentType.CONTENT_MOVE}
 
     metadata = {
         "name": "filesystem_move",

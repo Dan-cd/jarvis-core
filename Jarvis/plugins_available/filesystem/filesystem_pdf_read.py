@@ -17,7 +17,7 @@ class FilesystemPDFReadPlugin(Plugin):
     com fallback automático para OCR quando necessário.
     """
 
-    INTENT = IntentType.FILE_PDF_READ
+    intents = {IntentType.CONTENT_READ}
 
     metadata = {
         "name": "filesystem_pdf_read",

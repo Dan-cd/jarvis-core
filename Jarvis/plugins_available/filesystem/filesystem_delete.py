@@ -12,7 +12,7 @@ class FilesystemDeletePlugin(Plugin):
     Nunca executa diretamente sem confirmação.
     """
 
-    INTENT = IntentType.FILE_DELETE
+    intents = {IntentType.CONTENT_DELETE}
 
     metadata = {
         "name": "filesystem_delete",

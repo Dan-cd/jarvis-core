@@ -20,6 +20,8 @@ from Jarvis.core.dev_mode_guard import DevModeGuard
 from Jarvis.core.memory.store import MemoryStore
 from Jarvis.core.memory.manager import MemoryManager
 from Jarvis.core.memory.models import MemoryType
+from Jarvis.core.memory.execution_memory import ExecutionMemory
+from Jarvis.core.memory.temp_memory import TempMemory
 from Jarvis.core.dev_mode_guard import DevModeGuard
 from Jarvis.plugins.loader import load_plugins
 load_plugins()
@@ -30,6 +32,9 @@ dev_guard = DevModeGuard(
 
 memory_store = MemoryStore()
 memory_manager = MemoryManager(memory_store)
+execution_memory = ExecutionMemory()
+temp_memory = TempMemory()
+
 
 # EXEMPLO DE USO (mais tarde vem do Intent + Router)
 user_explicitly_requested = True
@@ -58,8 +63,10 @@ executor = Executor(
     fallback=fallback_llm,
     sandbox=sandbox,
     memory=memory_manager,
+    execution_memory=execution_memory,
+    temp_memory=temp_memory,
     context=context,
-    answer_pipeline=AnswerPipeline(llm_manager),
+    answer_pipeline=AnswerPipeline(llm_manager, execution_memory),
     dev_guard=dev_guard
 )
 

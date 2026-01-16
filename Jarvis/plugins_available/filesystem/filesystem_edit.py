@@ -10,7 +10,7 @@ class FilesystemEditPlugin(Plugin):
     Plugin responsável por edição de arquivos locais.
     """
 
-    INTENT = IntentType.FILE_EDIT
+    intents = {IntentType.CONTENT_MODIFY}
 
     metadata = {
         "name": "filesystem_edit",
