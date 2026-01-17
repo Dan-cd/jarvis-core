@@ -117,7 +117,7 @@ class IntentEngine:
         if any(p in lower for p in MEMORY_READ_PATTERNS):
             return Intent(IntentType.MEMORY_READ, raw)
 
-        # 🌐 WEB — prioridade sobre conteúdo
+        #  WEB — prioridade sobre conteúdo
         if any(v in lower for v in WEB_VERBS):
             return Intent(IntentType.WEB_FETCH, raw)
 

@@ -18,6 +18,13 @@ class DecisionPath(Enum):
 
 @dataclass
 class Decision:
+    def __init__(self, path, payload, requires_web=False, reason=None, outcome=None):
+        self.path = path
+        self.payload = payload
+        self.requires_web = requires_web
+        self.reason = reason
+        self.outcome = outcome
+        
     outcome: DecisionOutcome
     path: Optional[DecisionPath] = None
     reason: Optional[str] = None
