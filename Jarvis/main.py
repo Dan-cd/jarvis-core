@@ -1,5 +1,4 @@
 # Jarvis/main.py
-
 from Jarvis.core.bootstrap import bootstrap_env
 from Jarvis.core.config import Config
 from Jarvis.core.context import ExecutionContext
@@ -13,24 +12,44 @@ from Jarvis.core.executor import Executor
 from Jarvis.core.answer_pipeline import AnswerPipeline
 from Jarvis.plugins.loader import load_plugins
 
+
 def main():
-    # Config global
+    # --- bootstrap e ambiente
     bootstrap_env()
-    Config.validate()
 
-    # Context
+    # --- instância de configuração (única fonte)
+    config = Config()
+    config.validate()  # não fatal por default; imprime avisos
+
+    # --- contexto de execução
     context = ExecutionContext()
+    context.dev_mode = config.dev_mode
+    context.offline = config.offline
 
-    # Plugins (carrega todos)
+    # --- carregar plugins (registro global)
     load_plugins()
 
-    # Modelos de linguagem
-    primary_llm = GroqLLM(config={"api_key": Config.GROQ_API_KEY})
-    fallback_llm = OllamaLLM(config={"model": Config.OLLAMA_MODEL})
+    # --- instanciar provedores LLM com dados vindos da config
+    primary_llm = None
+    fallback_llm = None
 
-    llm_manager = LLMManager(primary_llm=primary_llm, fallback_llm=fallback_llm)
+    # Se houver API key Groq, cria o GroqLLM (padrão)
+    if config.GROQ_API_KEY and config.allow_llm:
+        try:
+            primary_llm = GroqLLM(config={"api_key": config.GROQ_API_KEY, "model": config.GROQ_MODEL})
+        except Exception as e:
+            print(f"[main] Falha ao iniciar GroqLLM: {e}")
 
-    # Router e Executor
+    # Sempre criamos um Ollama local (fallback) se permitido
+    if config.allow_llm:
+        try:
+            fallback_llm = OllamaLLM(config={"model": config.OLLAMA_MODEL})
+        except Exception as e:
+            print(f"[main] Falha ao iniciar OllamaLLM: {e}")
+
+    llm_manager = LLMManager(primary_llm=primary_llm, fallback_llm=fallback_llm, context=context)
+
+    # --- Router / Executor / AnswerPipeline
     router = Router(context)
     answer_pipeline = AnswerPipeline(context)
     executor = Executor(
@@ -47,15 +66,17 @@ def main():
 
     formatter = OutputFormatter(context)
 
+    # --- instância do Jarvis core (injeção de dependências)
     jarvis = Jarvis(
         router=router,
         executor=executor,
         answer_pipeline=answer_pipeline,
         llm_manager=llm_manager,
-        config=Config(),
+        config=config,
     )
 
     jarvis.start()
+
 
 if __name__ == "__main__":
     main()
