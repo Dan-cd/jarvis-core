@@ -8,6 +8,7 @@ class DecisionOutcome(Enum):
     DENY = auto()
     REQUIRE_DEV_MODE = auto()
     OFFLINE =auto()
+    DENY_WEB_REQUIRED = auto()
 
 class DecisionPath(Enum):
     LLM = auto()

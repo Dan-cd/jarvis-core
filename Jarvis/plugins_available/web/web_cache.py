@@ -25,6 +25,13 @@ class WebCache:
         return result
 
     def set(self, query: str, result: WebResult, ttl: int = 300):
+        # Não cachear resultados sem conteúdo textual relevante
+        try:
+            if not getattr(result, "content", None):
+                return
+        except Exception:
+            return
+
         key = self._make_key(query)
         expires_at = time.time() + ttl
         self._store[key] = (expires_at, result)

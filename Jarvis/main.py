@@ -57,8 +57,8 @@ def main():
         fallback=None,
         sandbox=None,
         memory=None,
-        execution_memory=None,
-        temp_memory=None,
+        execution_memory=context.execution_memory,
+        temp_memory=context.temp_memory,
         context=context,
         answer_pipeline=answer_pipeline,
         dev_guard=None

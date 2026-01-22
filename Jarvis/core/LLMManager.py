@@ -2,6 +2,7 @@ from Jarvis.core.errors import (
     LLMUnavailable,
     LLMExecutionError
 )
+from Jarvis.modules.llm.base import LLMRequest, LLMResponse
 
 
 class LLMManager:
@@ -52,14 +53,18 @@ class LLMManager:
         if not hasattr(llm, "generate"):
             raise LLMExecutionError("LLM não implementa método generate().")
 
-        response = llm.generate(
-            prompt=prompt,
-            mode=mode
-        )
+        # Adapta chamadas para a interface LLMRequest/LLMResponse
+        req = LLMRequest(prompt=prompt, mode=mode)
+        response = llm.generate(req)
 
-        if not isinstance(response, str):
+        # Alguns providers podem devolver LLMResponse ou string
+        if isinstance(response, LLMResponse):
+            text = response.text
+        elif isinstance(response, str):
+            text = response
+        else:
             raise LLMExecutionError(
-                "LLM retornou resposta não textual."
+                "LLM retornou resposta em formato inesperado."
             )
 
-        return response
+        return text

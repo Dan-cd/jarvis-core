@@ -5,6 +5,7 @@ from Jarvis.core.errors import (
     InvalidAnswerOrigin,
     InvalidActionResult
 )
+from Jarvis.core.action_request import ActionRequest
 
 
 class Executor:
@@ -85,8 +86,22 @@ class Executor:
                 "Nenhum plugin disponível para execução."
             )
 
-        plugin = plugins[0]
-        raw_result = plugin.execute(intent)
+        # plugins pode conter classes (registradas) ou instâncias
+        plugin_ref = plugins[0]
+        if isinstance(plugin_ref, type):
+            plugin = plugin_ref()
+        else:
+            plugin = plugin_ref
+
+        # Constrói ActionRequest esperado pelos plugins
+        params = getattr(intent, "payload", None) or {"query": intent.raw}
+        action = ActionRequest(
+            intent=intent,
+            params=params,
+            context=self.context,
+        )
+
+        raw_result = plugin.execute(action)
 
         if not isinstance(raw_result, ActionResult):
             raise InvalidActionResult(

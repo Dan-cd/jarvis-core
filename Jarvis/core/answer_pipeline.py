@@ -44,6 +44,38 @@ class AnswerPipeline:
 
         return self._render(payload)
 
+    def build_from_result(self, result) -> str:
+        """
+        Compat layer: aceita um `ActionResult` (ou objeto similar)
+        e converte para a representação final via `build`.
+        """
+        # Extrai conteúdo textual preferindo `content`, depois `data`, depois `message`
+        content = None
+        if hasattr(result, "content") and result.content:
+            content = result.content
+        elif hasattr(result, "data") and isinstance(result.data, str) and result.data:
+            content = result.data
+        elif getattr(result, "message", None):
+            content = result.message
+
+        origin = getattr(result, "origin", getattr(result, "source", "local"))
+        confidence = getattr(result, "confidence", 0.0) or 0.0
+        sources = None
+        # Suporta vários formatos de `data`: dict ou objeto com atributo `sources`
+        if hasattr(result, "data"):
+            if isinstance(result.data, dict):
+                sources = result.data.get("sources")
+            elif hasattr(result.data, "sources"):
+                sources = getattr(result.data, "sources")
+
+        return self.build(
+            response=content or "",
+            origin=origin,
+            confidence=confidence,
+            explainable=False,
+            sources=sources,
+        )
+
     # =========================
     # Erros institucionais
     # =========================

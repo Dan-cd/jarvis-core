@@ -14,7 +14,7 @@ class JarvisError(Exception):
     def __init__(
         self,
         message: str,
-        origin: str,
+        origin: Optional[str] = "unknown",
         module: Optional[str] = None,
         function: Optional[str] = None,
         original_exception: Optional[Exception] = None,
@@ -28,7 +28,7 @@ class JarvisError(Exception):
             original_exception: Exceção original (para traceback).
         """
         self.message = message
-        self.origin = origin
+        self.origin = origin or "unknown"
         self.module = module
         self.function = function
         self.original_exception = original_exception
@@ -36,7 +36,7 @@ class JarvisError(Exception):
         super().__init__(message)
 
     def __str__(self):
-        return f"[{self.origin}] {self.message}"
+        return f"[{self.origin or 'unknown'}] {self.message}"
 
 
 

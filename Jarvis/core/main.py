@@ -76,7 +76,10 @@ class Jarvis:
                 print(raw_response)
 
             except JarvisError as je:
+                if not getattr(je, "origin", None):
+                    je.origin = "core.main"
                 self.error_manager.handle(je)
+                
             except Exception as unexpected:
                 # Garanta que tudo vira JarvisError para tratamento institucional
                 je = JarvisError(
