@@ -30,6 +30,10 @@ class Config:
         self.WEB_TIMEOUT_SECONDS: int = int(os.getenv("JARVIS_WEB_TIMEOUT", "10"))
         self.WEB_CACHE_TTL_SECONDS: int = int(os.getenv("JARVIS_WEB_CACHE_TTL", "3600"))
 
+        # Senha para entrar no Dev Mode (pode ser definida via env)
+        # Valor padrão 'changeme' é intencionalmente inseguro para alertar o usuário.
+        self.DEV_PASSWORD: str = os.getenv("JARVIS_DEV_PASSWORD", "changeme")
+
     def _get_bool(self, name: str, default: bool) -> bool:
         """
         Lê booleano de ambiente (ex: 'true', '1', 'yes', 'on').
@@ -73,5 +77,9 @@ class Config:
             else:
                 # alerta, mas não encerra
                 print(f"[Config.validate] Aviso: {msg}", file=sys.stderr)
+
+        # Aviso caso a senha de Dev Mode esteja no padrão
+        if self.DEV_PASSWORD == "changeme":
+            print("[Config.validate] Aviso: JARVIS_DEV_PASSWORD não definido (usando 'changeme'). Defina a variável de ambiente para proteger o Dev Mode.", file=sys.stderr)
 
         return ok

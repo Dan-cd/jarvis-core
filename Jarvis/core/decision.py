@@ -19,7 +19,7 @@ class DecisionPath(Enum):
 
 @dataclass
 class Decision:
-    def __init__(self, path, payload, requires_web=False, reason=None, outcome=None):
+    def __init__(self, path=None, payload=None, requires_web=False, reason=None, outcome=None):
         self.path = path
         self.payload = payload
         self.requires_web = requires_web

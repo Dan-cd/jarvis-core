@@ -135,7 +135,7 @@ class AnswerPipeline:
                 f"confiança={payload['confidence']:.2f}]"
             )
 
-        return "🤖 Jarvis"
+        return " [Jarvis] "
 
     def _render_footer(self, payload: dict) -> Optional[str]:
         """

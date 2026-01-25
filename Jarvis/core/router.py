@@ -1,6 +1,8 @@
 from Jarvis.core.intent import IntentType, IntentEngine, Intent
 from Jarvis.core.policy import PolicyEngine
 from Jarvis.core.decision import Decision, DecisionOutcome, DecisionPath
+from Jarvis.core.dev_mode import DevModeManager
+from Jarvis.core.config import Config
 from Jarvis.plugins.registry import PluginRegistry
 
 # Intenções que NÃO podem ser respondidas sem Web
@@ -24,8 +26,11 @@ class Router:
         self.policy_engine = PolicyEngine(context)
 
     def route(self, user_input: str) -> Decision:
-        if not user_input.strip():
+        raw = user_input.strip()
+        if not raw:
             return Decision.final(DecisionOutcome.DENY, "Entrada vazia.")
+
+
 
         intent = self.intent_engine.parse(user_input)
         if not intent:
@@ -34,6 +39,7 @@ class Router:
         # Dev Mode
         if intent.type == IntentType.DEV_ENTER:
             return Decision.final(DecisionOutcome.REQUIRE_DEV_MODE, "Autenticação Dev necessária.")
+        
         if intent.type == IntentType.DEV_EXIT:
             self.context.dev_mode = False
             return Decision.final(DecisionOutcome.ALLOW, "Dev Mode desativado.")

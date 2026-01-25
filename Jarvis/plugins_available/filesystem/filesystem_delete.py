@@ -20,7 +20,7 @@ class FilesystemDeletePlugin(Plugin):
         "description": "Exclusão segura de arquivos locais",
         "capabilities": ["filesystem.delete"],
         "risk_level": "high",
-        "dev_only": False,
+        "dev_only": True,
         "supports_dry_run": True,
         "requires_confirmation": True,
     }
