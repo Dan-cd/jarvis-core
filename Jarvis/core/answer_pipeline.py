@@ -1,11 +1,9 @@
+# Jarvis/core/answer_pipeline.py
+
 from typing import Optional, List
-
 from Jarvis.core.errors import (
-    JarvisError,
     InvalidAnswerOrigin,
-    WebRequiredButUnavailable,
 )
-
 
 class AnswerPipeline:
     """
@@ -15,10 +13,6 @@ class AnswerPipeline:
 
     def __init__(self, context):
         self.context = context
-
-    # =========================
-    # Interface pública
-    # =========================
 
     def build(
         self,
@@ -34,71 +28,65 @@ class AnswerPipeline:
 
         self._validate_origin(origin)
 
-        payload = {
-            "text": response.strip(),
-            "origin": origin,
-            "confidence": confidence,
-            "sources": sources or [],
-            "explainable": explainable,
-        }
+        # Normaliza o texto da resposta e cria cabeçalho
+        cleaned = response.strip()
+        header = self._render_header(origin, confidence)
 
-        return self._render(payload)
+        # Corpo principal
+        body = cleaned
+
+        # Rodapé (fontes, explicações)
+        footer = self._render_footer(origin, sources, explainable)
+
+        return "\n".join(filter(None, [header, body, footer]))
 
     def build_from_result(self, result) -> str:
         """
-        Compat layer: aceita um `ActionResult` (ou objeto similar)
-        e converte para a representação final via `build`.
+        Compatibilidade: aceita um ActionResult
+        ou objeto similar e converte para a resposta final.
         """
-        # Extrai conteúdo textual preferindo `content`, depois `data`, depois `message`
-        content = None
-        if hasattr(result, "content") and result.content:
-            content = result.content
-        elif hasattr(result, "data") and isinstance(result.data, str) and result.data:
-            content = result.data
-        elif getattr(result, "message", None):
-            content = result.message
-
-        origin = getattr(result, "origin", getattr(result, "source", "local"))
+        content = getattr(result, "content", "") or ""
+        origin = getattr(result, "origin", "local")
         confidence = getattr(result, "confidence", 0.0) or 0.0
         sources = None
-        # Suporta vários formatos de `data`: dict ou objeto com atributo `sources`
-        if hasattr(result, "data"):
-            if isinstance(result.data, dict):
-                sources = result.data.get("sources")
-            elif hasattr(result.data, "sources"):
-                sources = getattr(result.data, "sources")
+
+        # Suporta vários formatos de `data` com `sources`
+        data = getattr(result, "data", None)
+        if isinstance(data, dict):
+            sources = data.get("sources")
+        elif hasattr(data, "sources"):
+            sources = getattr(data, "sources")
 
         return self.build(
-            response=content or "",
+            response=content,
             origin=origin,
             confidence=confidence,
-            explainable=False,
+            explainable=True,
             sources=sources,
         )
 
-    # =========================
+    # ===========================
     # Erros institucionais
-    # =========================
+    # ===========================
 
     def system_error(self, message: str) -> str:
-        return (
-            "⚠️ Ocorreu um erro interno no sistema.\n"
-            f"Detalhes: {message}"
-        )
+        """
+        Erro interno do sistema (negado pela arquitetura).
+        """
+        return "⚠️ Ocorreu um erro interno no sistema.\n" f"Detalhes: {message}"
 
     def web_required_error(self, message: str) -> str:
-        return (
-            "🌐 Esta pergunta exige acesso à internet.\n"
-            f"{message}"
-        )
+        """
+        Chamado quando a rota exige web plugin, mas ele não está disponível.
+        """
+        return "🌐 Esta pergunta exige acesso à internet.\n" f"{message}"
 
-    # =========================
-    # Validações internas
-    # =========================
+    # ===========================
+    # Validação de origem
+    # ===========================
 
     def _validate_origin(self, origin: str) -> None:
         valid_origins = {"llm", "web", "plugin", "local"}
-
         if origin not in valid_origins:
             raise InvalidAnswerOrigin(
                 message=f"Origem de resposta inválida: {origin}",
@@ -107,51 +95,44 @@ class AnswerPipeline:
                 function="_validate_origin",
             )
 
-    # =========================
+    # ===========================
     # Renderização final
-    # =========================
+    # ===========================
 
-    def _render(self, payload: dict) -> str:
+    def _render_header(self, origin: str, confidence: float) -> str:
         """
-        Renderiza a resposta final de forma institucional.
-        """
-
-        header = self._render_header(payload)
-        body = payload["text"]
-        footer = self._render_footer(payload)
-
-        return "\n".join(
-            part for part in (header, body, footer) if part
-        )
-
-    def _render_header(self, payload: dict) -> str:
-        """
-        Cabeçalho institucional (opcional).
+        Renderiza o cabeçalho institucional.
         """
 
+        # No modo dev, exibe contexto de origem/confiança
         if self.context.dev_mode:
             return (
-                f"[Jarvis • origem={payload['origin']} • "
-                f"confiança={payload['confidence']:.2f}]"
+                f"[Jarvis • origem={origin} • confiança={confidence:.2f}]"
             )
 
-        return " [Jarvis] "
+        # Identidade institucional _sempre_ Jarvis
+        return "🤖 Jarvis"
 
-    def _render_footer(self, payload: dict) -> Optional[str]:
+    def _render_footer(
+        self,
+        origin: str,
+        sources: Optional[List[str]],
+        explainable: bool
+    ) -> Optional[str]:
         """
-        Transparência e rastreabilidade.
+        Roda rodapé com fontes e explicações extras, quando aplicável.
         """
 
-        lines = []
+        lines: List[str] = []
 
-        if payload["origin"] == "web" and payload["sources"]:
+        # Listagem de fontes quando a origem inclui contexto web
+        if sources:
             lines.append("🔎 Fontes:")
-            for src in payload["sources"]:
-                lines.append(f"- {src}")
+            for s in sources:
+                lines.append(f"- {s}")
 
-        if payload["origin"] == "llm" and payload["explainable"]:
-            lines.append(
-                "ℹ️ Esta resposta foi gerada com base em conhecimento estático."
-            )
+        # Se origin == llm e explicável, adiciona nota de transparência
+        if origin == "llm" and explainable:
+            lines.append("ℹ️ Resposta gerada com base no contexto disponível.")
 
         return "\n".join(lines) if lines else None

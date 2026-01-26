@@ -1,6 +1,7 @@
 # Jarvis/core/executor.py
 
 from typing import Optional
+
 from Jarvis.core.decision import DecisionOutcome, DecisionPath
 from Jarvis.core.action_request import ActionRequest
 from Jarvis.core.action_result import ActionResult
@@ -13,8 +14,13 @@ from Jarvis.core.errors import (
 
 class Executor:
     """
-    Executor do Jarvis: responsável por executar a decisão
-    tomada pelo Router e produzir resposta final (string).
+    Executor principal do Jarvis.
+
+    Ele implementa:
+    - Execução de LLM
+    - Execução de Plugins (incluindo Web + RAG)
+    - Execução Local
+    - Garantias de contrato de origem/confiança/content
     """
 
     def __init__(
@@ -41,140 +47,121 @@ class Executor:
 
     def execute(self, decision, user_input: str) -> str:
         """
-        Ponto de entrada para executar uma Decision e
-        produzir uma resposta string pelo AnswerPipeline.
+        Executa uma Decision vinda do Router.
         """
-
-        # ====================
-        # LIMPEZA SEMPRE CHAMADA
-        # ====================
-        # Garantir que sempre exista memória a limpar
-        # (execution_memory deve vir do context corretamente).
+        # Sempre limpa a memória de execução (só se existir)
         if self.execution_memory:
             self.execution_memory.clear()
 
-        # ====================
-        # TRATAMENTO RÁPIDO DE DECISÕES FINAIS
-        # Se a Decision não especifica `path` é uma decisão final
-        # (ex.: mensagens de sistema, requer dev mode, desligar dev, etc.).
-        # ====================
-        if decision.path is None:
-            # Erros/denials
-            if decision.outcome == DecisionOutcome.DENY:
-                return self.answer_pipeline.system_error(getattr(decision, "reason", "") or "")
+        # DECISÕES FINAIS
+        if decision.outcome == DecisionOutcome.DENY:
+            return self.answer_pipeline.system_error(decision.reason)
 
-            if decision.outcome == DecisionOutcome.DENY_WEB_REQUIRED:
-                return self.answer_pipeline.web_required_error(getattr(decision, "reason", "") or "")
+        if decision.outcome == DecisionOutcome.OFFLINE:
+            return self.answer_pipeline.system_error(decision.reason)
 
-            # Caso geral: retornar a `reason` como resposta normal (origem local)
-            return self.answer_pipeline.build(
-                response=getattr(decision, "reason", "") or "",
-                origin="local",
-                confidence=1.0,
-            )
-
-        # ====================
-        # EXECUÇÃO PELO CAMINHO
-        # ====================
+        # A rota pode ser LLM, PLUGIN ou LOCAL
         if decision.path == DecisionPath.LLM:
             return self._execute_llm(decision, user_input)
 
         if decision.path == DecisionPath.PLUGIN:
-            return self._execute_plugin(decision)
+            return self._execute_plugin(decision, user_input)
 
         if decision.path == DecisionPath.LOCAL:
             return self._execute_local(decision)
 
-        # Não deveria chegar aqui
-        raise InvalidAnswerOrigin(
-            f"Caminho de execução inválido: {decision.path}"
-        )
+        raise InvalidAnswerOrigin(f"Caminho de execução inválido: {decision.path}")
 
-    # ============================
-    # MÉTODOS AUXILIARES DE EXECUÇÃO
-    # ============================
+    # ======================
+    # EXECUÇÕES POR CAMINHO
+    # ======================
 
     def _execute_llm(self, decision, user_input: str) -> str:
         """
-        Executa LLM local ou remoto e retorna via AnswerPipeline.
+        Executa apenas o LLM com o prompt do usuário.
         """
-        # Marcar origem
+
+        # Define origem na memória
         if self.execution_memory:
             self.execution_memory.set("origin", "llm")
 
-        # Gerar resposta
+        # Gera resposta
         response = self.llm.generate(
             prompt=user_input,
             mode=decision.payload.get("mode", "default")
         )
 
-        # Construir ActionResult
+        # Constrói um ActionResult
         result = ActionResult(
             content=response,
             origin="llm",
-            confidence=0.6  # default confianca para LLM
+            confidence=0.65
         )
 
         # Valida contrato
         self._validate_action_result(result, expected_origin="llm")
 
-        # Converter em string final
+        # Retorna string via AnswerPipeline
         return self.answer_pipeline.build_from_result(result)
 
-    def _execute_plugin(self, decision) -> str:
+    def _execute_plugin(self, decision, user_input: str) -> str:
         """
-        Executa plugin: pode ser web, scrape, busca, etc.
+        Executa um plugin. Se "temporal" estiver marcado,
+        aplica RAG (Web + LLM).
         """
-        intent = decision.payload["intent"]
+
+        intent = decision.payload.get("intent")
         plugins = decision.payload.get("plugins", [])
+        is_temporal = bool(decision.payload.get("temporal"))
 
         if not plugins:
             raise WebRequiredButUnavailable(
-                "Nenhum plugin disponível para execução."
+                "Nenhum plugin disponível para a intenção."
             )
 
-        # O PluginRegistry retorna lista de classes agora seguro
+        # Pega o primeiro plugin da lista
         plugin_ref = plugins[0]
 
-        # Instancia se for classe
-        if isinstance(plugin_ref, type):
-            plugin = plugin_ref()
-        else:
-            plugin = plugin_ref
+        # Pode vir como classe ou instância
+        plugin = plugin_ref() if isinstance(plugin_ref, type) else plugin_ref
 
         # Monta ActionRequest
         params = getattr(intent, "payload", None) or {"query": intent.raw}
         action = ActionRequest(
             intent=intent,
             params=params,
-            context=self.context,
+            context=self.context
         )
 
-        # Executa plugin
+        # Executa o plugin
         raw_result = plugin.execute(action)
 
-        # Validar tipo
+        # Garante que seja ActionResult
         if not isinstance(raw_result, ActionResult):
             raise InvalidActionResult(
-                f"Plugin {plugin.name} retornou tipo inválido."
+                f"Plugin {getattr(plugin, 'name', '?')} retornou tipo inválido."
             )
 
-        # Definir origem esperada
-        expected_origin = "web" if decision.payload.get("temporal") else "plugin"
+        # Se for consulta temporal e precisamos de RAG:
+        if is_temporal:
+            return self._synthesize_web_with_llm(user_input, raw_result)
 
-        # Contrato de origem/confiança
-        self._validate_action_result(raw_result, expected_origin)
+        # Valida contrato de origem se não for temporal
+        self._validate_action_result(raw_result, expected_origin="web")
 
-        # Converter resultado em string final
+        # Resposta direta (AnswerPipeline)
         return self.answer_pipeline.build_from_result(raw_result)
 
     def _execute_local(self, decision) -> str:
         """
-        Executa rota LOCAL (memória, comandos fixos, utilidades).
+        Execução local (memória / utilitários).
         """
+
+        # Define origem
         if self.execution_memory:
             self.execution_memory.set("origin", "local")
 
+        # Executa local
         content = self.memory.execute(decision.payload)
 
         result = ActionResult(
@@ -184,38 +171,72 @@ class Executor:
         )
 
         self._validate_action_result(result, expected_origin="local")
+
         return self.answer_pipeline.build_from_result(result)
 
-    # ============================
-    # VALIDAÇÃO DE CONTRATO
-    # ============================
+    # ====================
+    # RAG INTEGRADO (Web + LLM)
+    # ====================
 
-    def _validate_action_result(
-        self,
-        result: ActionResult,
-        expected_origin: str
-    ):
+    def _synthesize_web_with_llm(self, user_query: str, web_result: ActionResult) -> str:
         """
-        Assegura que o ActionResult está de acordo com
-        minimal contract (origem, content, confidence).
+        Sintetiza resposta combinando:
+        - o texto da web (web_result.content)
+        - as fontes (web_result.data.sources)
+        - a pergunta original (user_query)
+
+        Isso transforma um plugin web em um prompt fundamentado para o LLM,
+        gerando uma resposta “Jarvis - style”.
         """
 
-        # Tipo
+        # Monta prompt para RAG
+        prompt = (
+            "Você é Jarvis, um assistente inteligente com acesso a informações da web.\n"
+            f"Pergunta: {user_query}\n"
+            f"Resultado da Web:\n{web_result.content}\n\n"
+            "Com base nisso, responda de forma clara e precisa:"
+        )
+
+        # Chama LLM com modo “rag”
+        response = self.llm.generate(
+            prompt=prompt,
+            mode="rag"
+        )
+
+        # Cria ActionResult sintetizado
+        result = ActionResult(
+            content=response,
+            origin="llm",
+            confidence=web_result.confidence
+        )
+
+        # Valida contrato
+        self._validate_action_result(result, expected_origin="llm")
+
+        # Transfere fontes para o resultado
+        result.data = {"sources": getattr(web_result.data, "sources", [])}
+
+        # Retorna via AnswerPipeline
+        return self.answer_pipeline.build_from_result(result)
+
+    # ====================
+    # VALIDAR CONTRATO
+    # ====================
+
+    def _validate_action_result(self, result: ActionResult, expected_origin: str):
         if not isinstance(result, ActionResult):
             raise InvalidActionResult("Resultado não é ActionResult.")
 
-        # Origem
         if result.origin != expected_origin:
             raise InvalidAnswerOrigin(
                 f"Origem inválida: esperado={expected_origin}, recebido={result.origin}"
             )
 
-        # Content precisa ser string
         if not isinstance(result.content, str):
             raise InvalidActionResult("content precisa ser string.")
 
-        # Confidence tem que estar entre 0 e 1
         if not isinstance(result.confidence, (int, float)):
             raise InvalidActionResult("confidence inválida.")
+
         if not 0 <= result.confidence <= 1:
-            raise InvalidActionResult("confidence fora do intervalo 0–1.")
+            raise InvalidActionResult("confidence fora do intervalo 0-1.")
