@@ -2,6 +2,7 @@
 
 from typing import Optional
 from Jarvis.core.errors import LLMUnavailable, LLMExecutionError
+from Jarvis.core.llm_contract import LLMVerbosity
 
 SYSTEM_PROMPT = (
     "You are Jarvis, an expert and helpful assistant. "
@@ -78,11 +79,21 @@ class LLMManager:
             except ImportError:
                 raise LLMExecutionError("Interface de contrato de LLM não encontrada.")
 
-            # Recria o request com texto e regras
+            # Mapear 'mode' para 'verbosity' do contrato quando possível
+            verbosity = LLMVerbosity.NORMAL
+            try:
+                if isinstance(mode, str):
+                    mode_l = mode.lower()
+                    if mode_l in LLMVerbosity._value2member_map_:
+                        verbosity = LLMVerbosity(mode_l)
+            except Exception:
+                verbosity = LLMVerbosity.NORMAL
+
+            # Recria o request com texto e regras (sem passar 'mode' inválido)
             request = LLMRequest(
                 system_rules=SYSTEM_PROMPT,
                 prompt=prompt,
-                mode=mode
+                verbosity=verbosity
             )
             resp = llm.generate(request)
             # pode retornar LLMResponse ou string
