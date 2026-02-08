@@ -5,10 +5,12 @@ from Jarvis.core.errors import (
     InvalidAnswerOrigin,
 )
 
+
 class AnswerPipeline:
     """
-    Responsável pela resposta FINAL do sistema.
-    Aqui nasce a identidade institucional do Jarvis.
+    Responsável pela construção da resposta final exibida ao usuário.
+    Garante: identidade institucional (Jarvis), formatação consistente,
+    exibição de fontes quando existirem, e pequenas notas de explicabilidade.
     """
 
     def __init__(self, context):
@@ -22,69 +24,56 @@ class AnswerPipeline:
         explainable: bool = False,
         sources: Optional[List[str]] = None,
     ) -> str:
-        """
-        Constrói a resposta final para o usuário.
-        """
-
+        # Valida origem esperada
         self._validate_origin(origin)
 
-        # Normaliza o texto da resposta e cria cabeçalho
-        cleaned = response.strip()
+        cleaned = (response or "").strip()
         header = self._render_header(origin, confidence)
-
-        # Corpo principal
         body = cleaned
-
-        # Rodapé (fontes, explicações)
         footer = self._render_footer(origin, sources, explainable)
 
-        return "\n".join(filter(None, [header, body, footer]))
+        return "\n\n".join(part for part in (header, body, footer) if part)
 
     def build_from_result(self, result) -> str:
         """
-        Compatibilidade: aceita um ActionResult
-        ou objeto similar e converte para a resposta final.
+        Compat layer para ActionResult/objetos similares.
+        Extrai content, origin, confidence e sources (se presentes).
         """
         content = getattr(result, "content", "") or ""
-        origin = getattr(result, "origin", "local")
+        origin = getattr(result, "origin", getattr(result, "source", "local"))
         confidence = getattr(result, "confidence", 0.0) or 0.0
-        sources = None
 
-        # Suporta vários formatos de `data` com `sources`
+        # Extrai sources de result.data, que pode ser dict ou objeto
+        sources = None
         data = getattr(result, "data", None)
         if isinstance(data, dict):
             sources = data.get("sources")
         elif hasattr(data, "sources"):
             sources = getattr(data, "sources")
 
+        # Por default, explicable=True quando vem de LLM (sintetizado)
+        explainable = True if origin == "llm" else False
+
         return self.build(
             response=content,
             origin=origin,
             confidence=confidence,
-            explainable=True,
-            sources=sources,
+            explainable=explainable,
+            sources=sources
         )
 
-    # ===========================
-    # Erros institucionais
-    # ===========================
-
+    # -------------------------
+    # Mensagens de erro institucional
+    # -------------------------
     def system_error(self, message: str) -> str:
-        """
-        Erro interno do sistema (negado pela arquitetura).
-        """
         return "⚠️ Ocorreu um erro interno no sistema.\n" f"Detalhes: {message}"
 
     def web_required_error(self, message: str) -> str:
-        """
-        Chamado quando a rota exige web plugin, mas ele não está disponível.
-        """
         return "🌐 Esta pergunta exige acesso à internet.\n" f"{message}"
 
-    # ===========================
-    # Validação de origem
-    # ===========================
-
+    # -------------------------
+    # Validações internas
+    # -------------------------
     def _validate_origin(self, origin: str) -> None:
         valid_origins = {"llm", "web", "plugin", "local"}
         if origin not in valid_origins:
@@ -95,43 +84,27 @@ class AnswerPipeline:
                 function="_validate_origin",
             )
 
-    # ===========================
-    # Renderização final
-    # ===========================
-
+    # -------------------------
+    # Renderização
+    # -------------------------
     def _render_header(self, origin: str, confidence: float) -> str:
         """
-        Renderiza o cabeçalho institucional.
+        Cabeçalho institucional. No modo dev exibe origem e confiança.
         """
-
-        # No modo dev, exibe contexto de origem/confiança
-        if self.context.dev_mode:
-            return (
-                f"[Jarvis • origem={origin} • confiança={confidence:.2f}]"
-            )
-
-        # Identidade institucional _sempre_ Jarvis
+        if getattr(self.context, "dev_mode", False):
+            return f"[Jarvis • origem={origin} • confiança={confidence:.2f}]"
         return "🤖 Jarvis"
 
-    def _render_footer(
-        self,
-        origin: str,
-        sources: Optional[List[str]],
-        explainable: bool
-    ) -> Optional[str]:
-        """
-        Roda rodapé com fontes e explicações extras, quando aplicável.
-        """
-
+    def _render_footer(self, origin: str, sources: Optional[List[str]], explainable: bool) -> Optional[str]:
         lines: List[str] = []
 
-        # Listagem de fontes quando a origem inclui contexto web
+        # Exibe fontes se houver
         if sources:
             lines.append("🔎 Fontes:")
             for s in sources:
                 lines.append(f"- {s}")
 
-        # Se origin == llm e explicável, adiciona nota de transparência
+        # Nota de explicabilidade para respostas LLM (sintetizadas)
         if origin == "llm" and explainable:
             lines.append("ℹ️ Resposta gerada com base no contexto disponível.")
 

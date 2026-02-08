@@ -1,14 +1,21 @@
-from Jarvis.core.errors import (
-    LLMUnavailable,
-    LLMExecutionError
-)
-from Jarvis.modules.llm.base import LLMRequest, LLMResponse
+# Jarvis/core/LLMManager.py
 
+from typing import Optional
+from Jarvis.core.errors import LLMUnavailable, LLMExecutionError
+
+SYSTEM_PROMPT = (
+    "You are Jarvis, an expert and helpful assistant. "
+    "Always answer as 'Jarvis' and do not mention being a model, "
+    "training, architecture, internal details, or provider. "
+    "Provide clear answers, and when sources are included, reference them after the main response."
+)
 
 class LLMManager:
     """
-    Responsável apenas por orquestrar modelos de linguagem.
-    NÃO decide origem, NÃO cria ActionResult, NÃO fala com AnswerPipeline.
+    Orquestra provedor(es) de linguagem.
+    Insere um prompt de sistema institucional forte,
+    aplica fallback quando necessário,
+    e retorna apenas texto pronto para a camada superior.
     """
 
     def __init__(self, primary_llm=None, fallback_llm=None, context=None):
@@ -17,54 +24,73 @@ class LLMManager:
         self.context = context
 
     def available(self) -> bool:
+        """
+        Indica se algum LLM está configurado.
+        """
         return self.primary_llm is not None or self.fallback_llm is not None
 
     def generate(self, prompt: str, mode: str = "default") -> str:
         """
-        Tenta gerar resposta usando o modelo primário.
-        Se falhar, tenta fallback.
-        Retorna apenas TEXTO.
+        Gera resposta usando o LLM primário, com fallback automático.
+        O prompt da aplicação já deve incluir instruções contextuais.
         """
+        if not self.available():
+            raise LLMUnavailable("Nenhum LLM disponível para execução.")
 
-        if self.primary_llm:
-            try:
-                return self._generate_with(self.primary_llm, prompt, mode)
-            except Exception as e:
-                if not self.fallback_llm:
-                    raise LLMExecutionError(
-                        f"Falha no LLM primário e fallback indisponível: {e}"
-                    )
-
-        if self.fallback_llm:
+        try:
+            return self._generate_with(self.primary_llm, prompt, mode)
+        except Exception as e:
+            if not self.fallback_llm:
+                # Sem fallback → erro definitivo
+                raise LLMExecutionError(
+                    f"Falha no LLM primário e fallback indisponível: {e}"
+                )
+            # Tenta fallback
             try:
                 return self._generate_with(self.fallback_llm, prompt, mode)
-            except Exception as e:
+            except Exception as e2:
                 raise LLMExecutionError(
-                    f"Falha no fallback LLM: {e}"
+                    f"Falha no fallback LLM: {e2}"
                 )
-
-        raise LLMUnavailable("Nenhum LLM disponível para execução.")
 
     def _generate_with(self, llm, prompt: str, mode: str) -> str:
         """
-        Execução isolada de um LLM específico.
+        Realiza a chamada ao provider real de LLM.
+        Adaptamos para dois cenários:
+          - providers que usam mensagens (chat)
+          - providers que usam string (prompt puro)
         """
+
+        # Monta as instruções completas:
+        # Primeiro o system prompt, depois a query do usuário
+        final_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}"
 
         if not hasattr(llm, "generate"):
             raise LLMExecutionError("LLM não implementa método generate().")
 
-        # Adapta chamadas para a interface LLMRequest/LLMResponse
-        req = LLMRequest(prompt=prompt, mode=mode)
-        response = llm.generate(req)
+        # Detecta se o provider espera um objeto ou listas de mensagens
+        try:
+            response = llm.generate(final_prompt, mode=mode)
+        except TypeError:
+            # Alguns providers (como Groq) usam LLMRequest/LLMResponse
+            try:
+                from Jarvis.core.llm_contract import LLMRequest, LLMResponse
+            except ImportError:
+                raise LLMExecutionError("Interface de contrato de LLM não encontrada.")
 
-        # Alguns providers podem devolver LLMResponse ou string
-        if isinstance(response, LLMResponse):
-            text = response.text
-        elif isinstance(response, str):
-            text = response
-        else:
-            raise LLMExecutionError(
-                "LLM retornou resposta em formato inesperado."
+            # Recria o request com texto e regras
+            request = LLMRequest(
+                system_rules=SYSTEM_PROMPT,
+                prompt=prompt,
+                mode=mode
             )
+            resp = llm.generate(request)
+            # pode retornar LLMResponse ou string
+            if isinstance(resp, LLMResponse):
+                return resp.text
+            if isinstance(resp, str):
+                return resp
+            raise LLMExecutionError("LLM retornou formato inesperado.")
 
-        return text
+        # Se chegou aqui, assumimos que a resposta é string
+        return response
