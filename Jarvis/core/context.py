@@ -1,34 +1,45 @@
+from typing import Dict, Any
+from Jarvis.core.memory.execution_memory import ExecutionMemory
+
+
+class TempMemory(ExecutionMemory):
+    """
+    Memória temporária separada que herda contrato de ExecutionMemory.
+    Pode ser expandida para TTL, limites, debug etc.
+    """
+    pass
+
+
 class ExecutionContext:
-    def __init__(self, llm_available: bool = True, dev_mode: bool = False):
-        self.dev_mode = dev_mode
-        self.permissions: set[str] = set()
-        self.llm_available: bool = llm_available
+    """
+    Estado compartilhado de runtime do Jarvis.
+    Guarda flags e memórias que o Executor / Pipeline usam.
+    """
 
-    def describe_system(self) -> str:
-        """
-        Retorna uma descrição crua das capacidades atuais do sistema.
-        Essa resposta será posteriormente lapidada pelo AnswerPipeline.
-        """
-        features = [
-            "Interpretar comandos de texto",
-            "Responder perguntas gerais",
-            "Executar comandos básicos com segurança",
-            "Possuir um modo desenvolvedor com permissões avançadas",
-            "Manter memória curta da conversa atual",
-        ]
+    def __init__(self):
+        # Flags simples de runtime
+        self.dev_mode: bool = False
+        self.offline: bool = False
+        self.llm_available: bool = True
 
-        description = (
-            "Este é o sistema Jarvis.\n"
-            "Atualmente, ele pode:\n"
+        # Memórias baseadas na implementação oficial
+        self.execution_memory: ExecutionMemory = ExecutionMemory()
+        self.temp_memory: TempMemory = TempMemory()
+
+        # Extras (logs, dados transientes)
+        self.extra: Dict[str, Any] = {}
+
+    def __repr__(self) -> str:
+        return (
+            f"<ExecutionContext dev_mode={self.dev_mode} offline={self.offline} "
+            f"llm_available={self.llm_available}>"
         )
 
-        for feature in features:
-            description += f"- {feature}\n"
+    def enable_dev(self) -> None:
+        self.dev_mode = True
 
-        if self.dev_mode:
-            description += "\n O modo desenvolvedor está ATIVO."
-        else:
-            description += "\n O modo desenvolvedor está DESATIVADO."
+    def disable_dev(self) -> None:
+        self.dev_mode = False
 
-        return description
-        
+    def set_offline(self, value: bool) -> None:
+        self.offline = bool(value)

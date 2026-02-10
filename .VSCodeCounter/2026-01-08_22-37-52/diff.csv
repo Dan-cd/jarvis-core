@@ -1,0 +1,7 @@
+"filename", "language", "Python", "comment", "blank", "total"
+"/home/danvic/JARVIS/Jarvis/core/action_request.py", "Python", 0, 0, -1, -1
+"/home/danvic/JARVIS/Jarvis/core/executor.py", "Python", 2, -2, -6, -6
+"/home/danvic/JARVIS/Jarvis/core/router.py", "Python", 20, 6, 9, 35
+"/home/danvic/JARVIS/Jarvis/plugins/base.py", "Python", 1, 0, -2, -1
+"/home/danvic/JARVIS/Jarvis/plugins/registry.py", "Python", -6, 0, 0, -6
+"Total", "-", 17, 4, 0, 21

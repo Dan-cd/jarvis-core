@@ -1,0 +1,18 @@
+[
+  {
+    "id": "fcc4acf8-7a26-461b-a128-498dc271f132",
+    "type": "fact",
+    "content": "memorize que meu nome é daniel",
+    "source": "user",
+    "created_at": "2025-12-31T21:58:28.935540",
+    "confidence": 1.0
+  },
+  {
+    "id": "502c19dd-34e9-4375-aa76-ba014f864890",
+    "type": "fact",
+    "content": "salve na memória que meu nome é daniel",
+    "source": "user",
+    "created_at": "2026-01-16T20:04:47.668570",
+    "confidence": 1.0
+  }
+]

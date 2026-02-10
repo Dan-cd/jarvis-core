@@ -11,14 +11,13 @@ def safe_execute(*, origin: str | None = None, sensitive= False):
             try:
                 return func(*args, **kwargs)
             except Exception as exc:
-                return JarvisError(
+                # Levanta um JarvisError usando o origin correto (real_origin)
+                raise JarvisError(
                     message=str(exc),
-                    source=real_origin,
-                    origin=origin,
+                    origin=real_origin,
                     module=func.__module__,
                     function=func.__name__,
-                    sensitive=sensitive,
                     original_exception=exc,
-                )
+                ) from exc
         return wrapper
     return decorator

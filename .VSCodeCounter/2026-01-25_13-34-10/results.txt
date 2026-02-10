@@ -1,0 +1,119 @@
+Date : 2026-01-25 13:34:10
+Directory : /home/danvic/JARVIS/Jarvis
+Total : 74 files,  2213 codes, 442 comments, 698 blanks, all 3353 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Python   |         71 |      2,194 |        442 |        697 |      3,333 |
+| JSON     |          3 |         19 |          0 |          1 |         20 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++--------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                           | files      | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                              |         74 |      2,213 |        442 |        698 |      3,353 |
+| . (Files)                                                                      |          2 |         57 |         10 |         17 |         84 |
+| core                                                                           |         34 |      1,154 |        297 |        374 |      1,825 |
+| core (Files)                                                                   |         26 |        962 |        260 |        325 |      1,547 |
+| core/memory                                                                    |          8 |        192 |         37 |         49 |        278 |
+| data                                                                           |          3 |         19 |          0 |          1 |         20 |
+| data (Files)                                                                   |          2 |         19 |          0 |          0 |         19 |
+| data/memory                                                                    |          1 |          0 |          0 |          1 |          1 |
+| dev                                                                            |          4 |          8 |          0 |          4 |         12 |
+| modules                                                                        |          5 |         98 |          7 |         33 |        138 |
+| modules (Files)                                                                |          1 |          0 |          0 |          1 |          1 |
+| modules/llm                                                                    |          4 |         98 |          7 |         32 |        137 |
+| plugins                                                                        |          4 |         49 |         19 |         22 |         90 |
+| plugins_available                                                              |         18 |        782 |        108 |        230 |      1,120 |
+| plugins_available (Files)                                                      |          3 |         18 |          0 |          9 |         27 |
+| plugins_available/filesystem                                                   |         12 |        549 |         79 |        183 |        811 |
+| plugins_available/filesystem (Files)                                           |          7 |        328 |         29 |        108 |        465 |
+| plugins_available/filesystem/utils                                             |          5 |        221 |         50 |         75 |        346 |
+| plugins_available/web                                                          |          3 |        215 |         29 |         38 |        282 |
+| safe                                                                           |          2 |         19 |          1 |          4 |         24 |
+| sandbox                                                                        |          2 |         27 |          0 |         13 |         40 |
++--------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++--------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                       | language | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| /home/danvic/JARVIS/Jarvis/__init__.py                                         | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/core/LLMManager.py                                  | Python   |         43 |         14 |         14 |         71 |
+| /home/danvic/JARVIS/Jarvis/core/__init__.py                                    | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/core/action_plan.py                                 | Python   |          8 |          0 |          1 |          9 |
+| /home/danvic/JARVIS/Jarvis/core/action_request.py                              | Python   |         11 |          0 |          1 |         12 |
+| /home/danvic/JARVIS/Jarvis/core/action_result.py                               | Python   |         19 |          4 |          8 |         31 |
+| /home/danvic/JARVIS/Jarvis/core/answer.py                                      | Python   |         10 |          0 |          3 |         13 |
+| /home/danvic/JARVIS/Jarvis/core/answer_pipeline.py                             | Python   |         93 |         34 |         31 |        158 |
+| /home/danvic/JARVIS/Jarvis/core/bootstrap.py                                   | Python   |         11 |          0 |          3 |         14 |
+| /home/danvic/JARVIS/Jarvis/core/config.py                                      | Python   |         37 |         26 |         15 |         78 |
+| /home/danvic/JARVIS/Jarvis/core/context.py                                     | Python   |         23 |         11 |         12 |         46 |
+| /home/danvic/JARVIS/Jarvis/core/decision.py                                    | Python   |         33 |          0 |          7 |         40 |
+| /home/danvic/JARVIS/Jarvis/core/dev_mode.py                                    | Python   |         17 |          0 |          7 |         24 |
+| /home/danvic/JARVIS/Jarvis/core/dev_mode_guard.py                              | Python   |         45 |          0 |         11 |         56 |
+| /home/danvic/JARVIS/Jarvis/core/errors.py                                      | Python   |         82 |         44 |         41 |        167 |
+| /home/danvic/JARVIS/Jarvis/core/executor.py                                    | Python   |        115 |         57 |         39 |        211 |
+| /home/danvic/JARVIS/Jarvis/core/intent.py                                      | Python   |         56 |         11 |         13 |         80 |
+| /home/danvic/JARVIS/Jarvis/core/llm_contract.py                                | Python   |         25 |          0 |          9 |         34 |
+| /home/danvic/JARVIS/Jarvis/core/logger.py                                      | Python   |         14 |          0 |          1 |         15 |
+| /home/danvic/JARVIS/Jarvis/core/main.py                                        | Python   |         63 |         12 |         20 |         95 |
+| /home/danvic/JARVIS/Jarvis/core/memory.py                                      | Python   |         42 |          0 |         11 |         53 |
+| /home/danvic/JARVIS/Jarvis/core/memory/__init__.py                             | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/core/memory/execution_memory.py                     | Python   |         16 |         13 |          8 |         37 |
+| /home/danvic/JARVIS/Jarvis/core/memory/manager.py                              | Python   |         25 |          0 |          7 |         32 |
+| /home/danvic/JARVIS/Jarvis/core/memory/models.py                               | Python   |         32 |          0 |          5 |         37 |
+| /home/danvic/JARVIS/Jarvis/core/memory/parser.py                               | Python   |         29 |          5 |          9 |         43 |
+| /home/danvic/JARVIS/Jarvis/core/memory/policies.py                             | Python   |          4 |          0 |          0 |          4 |
+| /home/danvic/JARVIS/Jarvis/core/memory/store.py                                | Python   |         49 |          0 |          7 |         56 |
+| /home/danvic/JARVIS/Jarvis/core/memory/temp_memory.py                          | Python   |         37 |         19 |         12 |         68 |
+| /home/danvic/JARVIS/Jarvis/core/output_formatter.py                            | Python   |          7 |          0 |          2 |          9 |
+| /home/danvic/JARVIS/Jarvis/core/params_resolver.py                             | Python   |         85 |         10 |         39 |        134 |
+| /home/danvic/JARVIS/Jarvis/core/policy.py                                      | Python   |         56 |         31 |         20 |        107 |
+| /home/danvic/JARVIS/Jarvis/core/router.py                                      | Python   |         57 |          6 |         14 |         77 |
+| /home/danvic/JARVIS/Jarvis/core/router_result.py                               | Python   |          5 |          0 |          1 |          6 |
+| /home/danvic/JARVIS/Jarvis/core/types.py                                       | Python   |          5 |          0 |          1 |          6 |
+| /home/danvic/JARVIS/Jarvis/data/dev_mode_state.json                            | JSON     |          1 |          0 |          0 |          1 |
+| /home/danvic/JARVIS/Jarvis/data/memory.json                                    | JSON     |         18 |          0 |          0 |         18 |
+| /home/danvic/JARVIS/Jarvis/data/memory/short_term.json                         | JSON     |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/dev/__init__.py                                     | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/dev/debug.py                                        | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/dev/inspect.py                                      | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/dev/simulate.py                                     | Python   |          8 |          0 |          1 |          9 |
+| /home/danvic/JARVIS/Jarvis/main.py                                             | Python   |         57 |         10 |         16 |         83 |
+| /home/danvic/JARVIS/Jarvis/modules/__init__.py                                 | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/modules/llm/__init__.py                             | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/modules/llm/base.py                                 | Python   |         16 |          0 |          7 |         23 |
+| /home/danvic/JARVIS/Jarvis/modules/llm/groq.py                                 | Python   |         48 |          4 |         14 |         66 |
+| /home/danvic/JARVIS/Jarvis/modules/llm/ollama.py                               | Python   |         34 |          3 |         10 |         47 |
+| /home/danvic/JARVIS/Jarvis/plugins/__init__.py                                 | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/plugins/base.py                                     | Python   |         14 |          0 |          2 |         16 |
+| /home/danvic/JARVIS/Jarvis/plugins/loader.py                                   | Python   |         23 |          0 |         11 |         34 |
+| /home/danvic/JARVIS/Jarvis/plugins/registry.py                                 | Python   |         12 |         19 |          8 |         39 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/__init__.py                       | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/domain_check.py                   | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/__init__.py            | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_delete.py   | Python   |         57 |          6 |         16 |         79 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_edit.py     | Python   |         51 |          3 |         16 |         70 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_move.py     | Python   |         52 |          5 |         16 |         73 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_pdf_read.py | Python   |         81 |          8 |         29 |        118 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_read.py     | Python   |         49 |          3 |         17 |         69 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/filesystem_write.py    | Python   |         38 |          4 |         13 |         55 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/utils/pdf_ocr.py       | Python   |         20 |          7 |          7 |         34 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/utils/pdf_summary.py   | Python   |         31 |          8 |          9 |         48 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/utils/resolver.py      | Python   |         66 |          4 |         23 |         93 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/utils/text_summary.py  | Python   |         19 |         10 |         12 |         41 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/filesystem/utils/ui.py            | Python   |         85 |         21 |         24 |        130 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web/models.py                     | Python   |         13 |          0 |          5 |         18 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web/plugin.py                     | Python   |        174 |         28 |         24 |        226 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web/web_cache.py                  | Python   |         28 |          1 |          9 |         38 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web_search.py                     | Python   |         18 |          0 |          7 |         25 |
+| /home/danvic/JARVIS/Jarvis/safe/__init__.py                                    | Python   |          0 |          0 |          1 |          1 |
+| /home/danvic/JARVIS/Jarvis/safe/safe_execution.py                              | Python   |         19 |          1 |          3 |         23 |
+| /home/danvic/JARVIS/Jarvis/sandbox/__init__.py                                 | Python   |          1 |          0 |          1 |          2 |
+| /home/danvic/JARVIS/Jarvis/sandbox/handler.py                                  | Python   |         26 |          0 |         12 |         38 |
+| Total                                                                          |          |      2,213 |        442 |        698 |      3,353 |
++--------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

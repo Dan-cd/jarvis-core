@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class LLMVerbosity(Enum):
@@ -16,6 +17,7 @@ class LLMRequest:
     system_rules: str
     verbosity: LLMVerbosity = LLMVerbosity.NORMAL
     max_tokens: int | None = None
+    context_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -26,14 +28,6 @@ class LLMResponse:
 
 
 class LLMInterface(ABC):
-    """
-    CONTRATO DEFINITIVO DO LLM
-    O LLM:
-    - recebe um pedido estruturado
-    - retorna apenas texto bruto
-    - não decide estado, ações ou modo
-    """
-
     @abstractmethod
     def generate(self, request: LLMRequest) -> LLMResponse:
         pass

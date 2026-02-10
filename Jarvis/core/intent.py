@@ -1,43 +1,33 @@
-from enum import Enum, auto
+# Jarvis/core/intent.py
+from __future__ import annotations
 from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Optional
+import re
 
-MEMORY_VERBS = [
-    "salve",
-    "guarde",
-    "lembre",
-    "memorize",
-    "grave"
-]
-
-MEMORY_KEYWORDS = [
-    "memória",
-    "memoria"
-]
-MEMORY_READ_PATTERNS = [
-    "qual é meu nome",
-    "qual meu nome",
-    "como me chamo",
-    "quem sou eu",
-    "o que você lembra",
-    "o que você lembra de mim",
-    "voce lembra de mim",
-]
 
 class IntentType(Enum):
-    MEMORY_WRITE = "memory.write"
-    MEMORY_READ = "memory.read"
-
+    # operações de memória / dev
+    MEMORY_WRITE = auto()
+    MEMORY_READ = auto()
     DEV_ENTER = auto()
     DEV_EXIT = auto()
 
-    FILE_CREATE = auto()
-    FILE_READ = auto()
-    FILE_READ_PDF = auto()
-    FILE_DELETE = auto()
-    FILE_MOVE = auto()
-    FILE_EDIT = auto()
+    # conteúdo (CRUD genérico)
+    CONTENT_CREATE = auto()
+    CONTENT_READ = auto()
+    CONTENT_MODIFY = auto()
+    CONTENT_DELETE = auto()
+    CONTENT_MOVE = auto()
 
+    # buscas / web / tempo real
+    WEB_FETCH = auto()
+
+    # ajuda / bate-papo
     HELP = auto()
+    CHAT = auto()
+
+    # fallback
     UNKNOWN = auto()
 
 
@@ -50,56 +40,87 @@ class Intent:
 
 class IntentEngine:
     """
-    V5 — IntentEngine puro.
-    Apenas identifica intenção.
+    Motor simples de intenção.
+    Regras:
+      - Comandos de DEV (entrar/sair) são detectados por frases curtas específicas.
+      - Comandos de memória por verbos (salvar, lembrar, guarde...).
+      - Web fetch por verbos (pesquise, buscar) ou por padrão temporal (hoje, agora, cotação).
+      - Conteúdo (criar/ler/modificar) por verbos CRUD simples.
+      - Help por 'ajuda' e seus sinônimos.
+      - Chat se a frase tem '?' ou é longa o bastante.
+      - Fallback -> UNKNOWN
     """
 
-    def parse(self, text: str) -> Intent | None:
-        raw = text.strip()
-        lower = raw.lower()
+    # palavras/expressões chave
+    _DEV_ENTER = re.compile(r"\b(dev entrar|dev enter|dev enter:|@dev)\b", re.IGNORECASE)
+    _DEV_EXIT = re.compile(r"\b(dev sair|dev exit|/devexit|exit dev)\b", re.IGNORECASE)
 
+    _MEMORY_WRITE_WORDS = ("salve", "guarde", "memorize", "lembre", "gravar", "anote")
+    _MEMORY_READ_PATTERNS = (
+        r"o que você lembra",
+        r"me lembre",
+        r"mostre minha memória",
+        r"lembre-me",
+        r"o que eu pedi",
+    )
+
+    _WEB_VERBS = ("pesquise", "pesquisar", "procure", "buscar", "busca", "pesquisa", "search")
+    _HELP_WORDS = ("ajuda", "help", "como faço", "o que é", "como usar")
+    _CONTENT_CREATE_WORDS = ("criar", "novo", "gerar")
+    _CONTENT_READ_WORDS = ("ler", "mostrar", "abrir", "exibir", "ver")
+    _CONTENT_MODIFY_WORDS = ("editar", "modificar", "alterar", "atualizar")
+    _CONTENT_DELETE_WORDS = ("deletar", "remover", "apagar", "excluir")
+
+    # padrões simples de sensibilidade temporal (usado também pelo router)
+    _TIME_PATTERNS = ("agora", "hoje", "neste momento", "cotação", "preço", "últimas notícias", "última notícia", "atualmente")
+
+    def parse(self, text: str) -> Optional[Intent]:
+        raw = (text or "").strip()
         if not raw:
             return None
 
-        # DEV MODE
-        if "dev" in lower and any(k in lower for k in ("entrar", "enter")):
-            return Intent(IntentType.DEV_ENTER, raw)
+        lowered = raw.lower()
 
-        if "dev" in lower and any(k in lower for k in ("sair", "exit")):
+        # Dev mode explicit
+        if self._DEV_ENTER.search(raw):
+            return Intent(IntentType.DEV_ENTER, raw)
+        if self._DEV_EXIT.search(raw):
             return Intent(IntentType.DEV_EXIT, raw)
 
-        # MEMORY — vem ANTES de filesystem
-        if any(v in lower for v in MEMORY_VERBS):
+        # Memory write detection
+        if any(word in lowered for word in self._MEMORY_WRITE_WORDS):
             return Intent(IntentType.MEMORY_WRITE, raw)
-        
 
-        if any(p in lower for p in MEMORY_READ_PATTERNS):
+        # Memory read detection (phrases)
+        if any(re.search(pat, lowered) for pat in self._MEMORY_READ_PATTERNS):
             return Intent(IntentType.MEMORY_READ, raw)
 
-            
-        if any(k in lower for k in (
-            "o que você lembra",
-            "suas memórias",
-            "liste memórias",
-            "qual é meu nome",
-            "o que você lembra de mim"
-        )):
-            return Intent(IntentType.MEMORY_READ, raw)
+        # Web explicit verbs
+        if any(v in lowered for v in self._WEB_VERBS):
+            return Intent(IntentType.WEB_FETCH, raw)
 
-        # FILESYSTEM
-        if any(k in lower for k in ("ler", "leia", "abrir", "mostrar", "abra")):
-            return Intent(IntentType.FILE_READ, raw)
+        # Help detection (start phrases or single word)
+        if any(h in lowered for h in self._HELP_WORDS) or lowered.strip() in ("ajuda", "help"):
+            return Intent(IntentType.HELP, raw)
 
-        if any(k in lower for k in ("criar", "crie", "salvar")):
-            return Intent(IntentType.FILE_CREATE, raw)
+        # Content operations (CRUD-ish)
+        if any(w in lowered for w in self._CONTENT_CREATE_WORDS):
+            return Intent(IntentType.CONTENT_CREATE, raw)
+        if any(w in lowered for w in self._CONTENT_MODIFY_WORDS):
+            return Intent(IntentType.CONTENT_MODIFY, raw)
+        if any(w in lowered for w in self._CONTENT_DELETE_WORDS):
+            return Intent(IntentType.CONTENT_DELETE, raw)
+        if any(w in lowered for w in self._CONTENT_READ_WORDS):
+            return Intent(IntentType.CONTENT_READ, raw)
 
-        if any(k in lower for k in ("editar", "alterar", "adicionar", "modificar", "edite")):
-            return Intent(IntentType.FILE_EDIT, raw)
+        # Time-sensitive heuristics that should be handled by Router as well.
+        if any(p in lowered for p in self._TIME_PATTERNS):
+            # sinaliza como WEB_FETCH para garantir roteamento coerente com policy/router
+            return Intent(IntentType.WEB_FETCH, raw)
 
-        if any(k in lower for k in ("apagar", "excluir", "deletar", "delete", "exclua", "apague")):
-            return Intent(IntentType.FILE_DELETE, raw)
+        # Heurística para chat: interrogação ou frase de mais de 3 palavras
+        if "?" in raw or len(raw.split()) > 3:
+            return Intent(IntentType.CHAT, raw)
 
-        if any(k in lower for k in ("mover", "transferir", "mova", "transfira")):
-            return Intent(IntentType.FILE_MOVE, raw)
-
+        # Fallback: se nenhuma regra bate, devolve UNKNOWN (Router decidirá)
         return Intent(IntentType.UNKNOWN, raw)

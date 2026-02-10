@@ -1,0 +1,39 @@
+Date : 2026-01-11 19:29:57
+Directory : /home/danvic/JARVIS/Jarvis
+Total : 10 files,  94 codes, 4 comments, 55 blanks, all 153 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Python   |         10 |         94 |          4 |         55 |        153 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                       | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                          |         10 |         94 |          4 |         55 |        153 |
+| . (Files)                                                  |          1 |          4 |          0 |          1 |          5 |
+| core                                                       |          5 |         -9 |         -2 |         24 |         13 |
+| plugins                                                    |          2 |          5 |          0 |          5 |         10 |
+| plugins_available                                          |          2 |         94 |          6 |         25 |        125 |
+| plugins_available/web                                      |          2 |         94 |          6 |         25 |        125 |
++------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                   | language | code       | comment    | blank      | total      |
++------------------------------------------------------------+----------+------------+------------+------------+------------+
+| /home/danvic/JARVIS/Jarvis/core/executor.py                | Python   |        -24 |         14 |         20 |         10 |
+| /home/danvic/JARVIS/Jarvis/core/intent.py                  | Python   |         11 |          3 |          0 |         14 |
+| /home/danvic/JARVIS/Jarvis/core/main.py                    | Python   |         -1 |          0 |          0 |         -1 |
+| /home/danvic/JARVIS/Jarvis/core/params_resolver.py         | Python   |         -8 |        -18 |          6 |        -20 |
+| /home/danvic/JARVIS/Jarvis/core/router.py                  | Python   |         13 |         -1 |         -2 |         10 |
+| /home/danvic/JARVIS/Jarvis/main.py                         | Python   |          4 |          0 |          1 |          5 |
+| /home/danvic/JARVIS/Jarvis/plugins/loader.py               | Python   |          5 |          0 |          6 |         11 |
+| /home/danvic/JARVIS/Jarvis/plugins/registry.py             | Python   |          0 |          0 |         -1 |         -1 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web/models.py | Python   |          4 |          3 |          1 |          8 |
+| /home/danvic/JARVIS/Jarvis/plugins_available/web/plugin.py | Python   |         90 |          3 |         24 |        117 |
+| Total                                                      |          |         94 |          4 |         55 |        153 |
++------------------------------------------------------------+----------+------------+------------+------------+------------+

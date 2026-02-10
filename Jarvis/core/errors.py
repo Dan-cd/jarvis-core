@@ -1,43 +1,115 @@
+from __future__ import annotations
 from datetime import datetime
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 import traceback
 
 
 class JarvisError(Exception):
+    """
+    Base exception para o Jarvis.
+    Todas as exceções específicas devem herdar desta.
+    """
+
     def __init__(
-            self,
-            message: str,
-            origin: str,
-            module: Optional[str] = None,
-            function: Optional[str] = None,
-            sensitive: bool = False,
-            source: str | None = None,
-            original_exception: Optional[Exception] = None
+        self,
+        message: str,
+        origin: Optional[str] = "unknown",
+        module: Optional[str] = None,
+        function: Optional[str] = None,
+        original_exception: Optional[Exception] = None,
     ):
+        """
+        Args:
+            message: Mensagem legível para logs/usuário (quando necessário).
+            origin: Parte do sistema que originou o erro (ex: "llm", "executor").
+            module: Nome do módulo Python onde ocorreu.
+            function: Nome da função/método onde ocorreu.
+            original_exception: Exceção original (para traceback).
+        """
         self.message = message
-        self.source = source
-        self.origin = origin
+        self.origin = origin or "unknown"
         self.module = module
         self.function = function
-        self.sensitive = sensitive
         self.original_exception = original_exception
         self.timestamp = datetime.now()
-
         super().__init__(message)
 
-class ErrorManager:
-    def __init__(self, config):
-        self.config = config
-        self.log_path = Path("data/logs/error.log")
+    def __str__(self):
+        return f"[{self.origin or 'unknown'}] {self.message}"
 
-    def handle(self, error):
+
+
+# Exceções semânticas usadas no fluxo
+
+
+class WebRequiredButUnavailable(JarvisError):
+    """Lançado quando a consulta exige web, mas nenhum WebPlugin disponível."""
+    pass
+
+
+class InvalidAnswerOrigin(JarvisError):
+    """Lançado quando Executor recebe origem inválida."""
+    pass
+
+
+class ExecutorContractViolation(JarvisError):
+    """Violação de contrato entre Router / Executor / Plugins."""
+    pass
+
+
+class PluginError(JarvisError):
+    """Erro originado em um plugin específico."""
+    pass
+
+
+class InvalidActionResult(JarvisError):
+    """
+    Ação retornou um resultado que não satisfaz o contrato esperado
+    (ex.: ActionResult inválido).
+    """
+    pass
+
+
+class LLMUnavailable(JarvisError):
+    """
+    Lançado quando não há nenhum LLM disponível no LLMManager.
+    """
+    pass
+
+
+class LLMExecutionError(JarvisError):
+    """
+    Erro ao executar um LLM (fallback acabou, ou provider levantou erro).
+    """
+    pass
+
+
+
+# Gerenciamento de erros (ErrorManager)
+
+
+class ErrorManager:
+    """
+    Responsável por logar erros e notificar de acordo com tipo/origem.
+    """
+
+    def __init__(self, config: dict | None = None):
+        self.config = config or {}
+        self.log_path = Path(self.config.get("error_log_path", "data/logs/error.log"))
+
+    def handle(self, error: JarvisError) -> None:
+        """
+        Entrada unificada para lidar com erros.
+        Registra no log e notifica conforme tipo/origem.
+        """
+
         try:
             self._log_error(error)
 
-            if error.origin == "plugin":
+            if isinstance(error, PluginError) or error.origin == "plugin":
                 self._handle_plugin_error(error)
-            elif error.origin == "core":
+            elif isinstance(error, ExecutorContractViolation) or error.origin == "core":
                 self._handle_core_error(error)
             else:
                 self._handle_generic_error(error)
@@ -45,55 +117,50 @@ class ErrorManager:
         except Exception as fatal_error:
             self._emergency_log(error, fatal_error)
 
-    def _handle_plugin_error(self, error: JarvisError):
-        self._notify_user(
-            f"Plugin sensível '{error.module}' desativado por segurança."
-        )
+    def _handle_plugin_error(self, error: JarvisError) -> None:
+        # Notifica usuário e possivelmente desativa plugin
+        print(f"[JARVIS][PLUGIN_ERROR] {error.message}")
 
-    def _handle_core_error(self, error):
-        self._notify_user(
-            f"Erro crítico no core. Sistema entrou no modo degradado"
-        )
+    def _handle_core_error(self, error: JarvisError) -> None:
+        # Notifica falha crítica de core
+        print(f"[JARVIS][CORE_ERROR] {error.message}")
 
-    def _handle_generic_error(self, error: JarvisError):
-        self._notify_user(
-            f"Erro ocorrido em {error.module or 'desconhecido'}."
-        )
+    def _handle_generic_error(self, error: JarvisError) -> None:
+        # Notifica erro padrão
+        print(f"[JARVIS][ERROR] {error.message}")
 
-    def _log_error(self, error: JarvisError):
-        self.log_path.parent.mkdir(parents=True, exists_ok=True)
+    def _log_error(self, error: JarvisError) -> None:
+        """
+        Loga o erro no arquivo configurado.
+        """
+
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(
-                f"[{error.timestamp}] "
-                f"{error.origin.upper()} | "
-                f"{error.module}.{error.function} | "
-                f"{error.message}\n"
-            )
+            f.write(f"[{error.timestamp.isoformat()}] {error.origin.upper()} | "
+                    f"{error.module or 'unknown'}.{error.function or 'unknown'} | "
+                    f"{error.message}\n")
 
             if error.original_exception:
-                f.write(
-                    traceback.format_exception(
-                        type(error.original_exception),
-                        error.original_exception,
-                        error.original_exception.__traceback__,
-                    )
-                )
+                f.write("Original exception:\n")
+                f.write("".join(traceback.format_exception(
+                    type(error.original_exception),
+                    error.original_exception,
+                    error.original_exception.__traceback__,
+                )))
                 f.write("\n")
 
-    def _disable_plugin(self, module: Optional[str]):
-        pass
-
-    def _notify_user(self, message: str):
-        print(f"[JARVIS] {message}")
-
-    def _emergency_log(self, original_error: JarvisError, fatal_error: Exception):
+    def _emergency_log(self, original_error: JarvisError, fatal_error: Exception) -> None:
+        """
+        Se o logging falhar, registra de forma simples para não perder o erro.
+        """
         try:
-            with open("data/logs/emergency.log", "a", encoding="utf-8") as f:
-                f.write(
-                    f" EMERENCY FAILURE while handling error: \n"
-                    f"{original_error.message}\n"
-                    f"{fatal_error}\n\n"
-                )
+            em_path = Path(self.config.get("emergency_log_path", "data/logs/emergency.log"))
+            em_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with em_path.open("a", encoding="utf-8") as f:
+                f.write(f"EMERGENCY at {datetime.now().isoformat()}\n")
+                f.write(f"Original: {original_error.message}\n")
+                f.write(f"Handler failure: {repr(fatal_error)}\n\n")
         except Exception:
-            pass
+            pass  # Se nem o emergency log funcionar, nada a fazer
