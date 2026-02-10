@@ -9,7 +9,7 @@ class DevModeManager:
         if self.context.dev_mode:
             return "Dev mode já está ativo."
         
-        if password != self.config.JARVIS_DEV_PASSWORD:
+        if password != self.config.DEV_PASSWORD:
             return "Senha incorreta. Acesso negado."
         
         self.context.dev_mode = True

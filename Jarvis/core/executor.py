@@ -59,7 +59,9 @@ class Executor:
             if decision.outcome == DecisionOutcome.OFFLINE:
                 return self.answer_pipeline.system_error(getattr(decision, "reason", "") or "")
             if decision.outcome == DecisionOutcome.REQUIRE_DEV_MODE:
-                return self.answer_pipeline.system_error(getattr(decision, "reason", "") or "")
+                # Intercepta solicitação de dev mode para autenticação
+                msg = getattr(decision, "reason", "") or "Requer modo desenvolvedor."
+                return self._handle_dev_auth_challenge(msg)
             # fallback: devolver reason como resposta local
             return self.answer_pipeline.build(
                 response=getattr(decision, "reason", "") or "",
@@ -194,6 +196,11 @@ class Executor:
                 prompt_parts.append(f"- {s}")
             prompt_parts.append("")
 
+        prompt_parts.append("Instruções de Síntese:")
+        prompt_parts.append("1. Responda APENAS com base nos resultados acima.")
+        prompt_parts.append("2. Se os resultados contiverem a resposta, sintetize-a em português.")
+        prompt_parts.append("3. Se os resultados estiverem vazios ou irrelevantes, diga: 'Não encontrei informações suficientes nos resultados da busca.'")
+        prompt_parts.append("4. NÃO sugira que o usuário pesquise novamente; você já pesquisou.")
         prompt_parts.append("Com base nisso, resuma e responda de forma clara e prática:")
 
         rag_prompt = "\n".join(prompt_parts)
@@ -233,3 +240,45 @@ class Executor:
 
         if not 0 <= result.confidence <= 1:
             raise InvalidActionResult("confidence fora do intervalo 0–1.")
+
+    # -------------------------
+    # Autenticação DEV
+    # -------------------------
+    def _handle_dev_auth_challenge(self, reason: str) -> str:
+        """
+        Solicita senha ao usuário se a interface permitir (CLI input).
+        Como o Executor roda num passo síncrono, usamos input() direto aqui
+        para manter a simplicidade do fluxo (conforme v6.5), 
+        embora idealmente isso fosse assíncrono.
+        """
+        print(f"\n🔒 {reason}")
+        print("Digite a senha de administrador (ou Enter para cancelar):")
+        try:
+            password = input("Senha> ").strip()
+        except EOFError:
+            return self.answer_pipeline.system_error("Entrada cancelada.")
+        
+        if not password:
+            return self.answer_pipeline.system_error("Autenticação cancelada.")
+
+        # Importação tardia para evitar ciclo ou garantir contexto
+        from Jarvis.core.dev_mode import DevModeManager
+        # Config já está no context? Não, precisamos passar config.
+        # O Executor recebe context, mas DevModeManager precisa de config.
+        # Vamos tentar pegar do bootstrap ou assumir que está no context.
+        # Ajuste: DevModeManager(context, config)
+        
+        # HACK: Se context não tiver config, pegamos do singleton ou erro
+        config = getattr(self.context, "config", None)
+        if not config:
+             # Tenta instanciar nova config (cacheada)
+             from Jarvis.core.config import Config
+             config = Config()
+
+        manager = DevModeManager(self.context, config)
+        result = manager.enter(password)
+        
+        if self.context.dev_mode:
+            return f"✅ {result}"
+        else:
+            return f"❌ {result}"

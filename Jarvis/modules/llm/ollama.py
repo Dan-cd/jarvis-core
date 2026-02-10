@@ -15,7 +15,7 @@ class OllamaLLM(LLMInterface):
 
     def __init__(self, config: dict | None = None):
         self.config = config or {}
-        self.model = self.config.get("model", "llama3")
+        self.model = self.config.get("model", "phi3:mini")
 
     def generate(self, request, mode=None) -> LLMResponse:
         """
@@ -57,10 +57,26 @@ class OllamaLLM(LLMInterface):
                 }
             )
 
-            # Resposta pode ser dict ou string
-            if isinstance(response, dict):
-                text = response.get("response") or response.get("text") or str(response)
-            else:
+            # Resposta pode ser dict, objeto ou string
+            text = None
+            
+            # Tenta acesso por atributo (objeto)
+            if hasattr(response, "response"):
+                text = response.response
+            elif hasattr(response, "message") and hasattr(response.message, "content"):
+                text = response.message.content
+            
+            # Tenta acesso por chave (dict)
+            elif isinstance(response, dict):
+                text = response.get("response") or response.get("text")
+                # Se for dict mas sem chaves padrão, tenta message nested
+                if not text and "message" in response:
+                    msg = response["message"]
+                    if isinstance(msg, dict):
+                        text = msg.get("content")
+            
+            # Fallback final: string, mas apenas se não conseguiu antes
+            if text is None:
                 text = str(response)
 
             return LLMResponse(text=text)

@@ -1,3 +1,4 @@
+
 # Jarvis/main.py
 from Jarvis.core.bootstrap import bootstrap_env
 from Jarvis.core.config import Config
@@ -29,23 +30,37 @@ def main():
     # --- carregar plugins (registro global)
     load_plugins()
 
-    # --- instanciar provedores LLM com dados vindos da config
+    # --- instanciar provedores LLM com robustez (Ollama = Baseline, Groq = Progressive Enhancement)
     primary_llm = None
     fallback_llm = None
 
-    # Se houver API key Groq, cria o GroqLLM (padrão)
-    if config.GROQ_API_KEY and config.allow_llm:
-        try:
-            primary_llm = GroqLLM(config={"api_key": config.GROQ_API_KEY, "model": config.GROQ_MODEL})
-        except Exception as e:
-            print(f"[main] Falha ao iniciar GroqLLM: {e}")
-
-    # Sempre criamos um Ollama local (fallback) se permitido
+    # 1. Tenta instanciar Ollama (Baseline garantido)
+    ollama_instance = None
     if config.allow_llm:
         try:
-            fallback_llm = OllamaLLM(config={"model": config.OLLAMA_MODEL})
+            ollama_instance = OllamaLLM(config={"model": config.OLLAMA_MODEL})
         except Exception as e:
-            print(f"[main] Falha ao iniciar OllamaLLM: {e}")
+            print(f"[main] ⚠️ Falha crítica ao iniciar Ollama (Baseline): {e}")
+
+    # 2. Tenta instanciar Groq (Melhoria opcional)
+    groq_instance = None
+    if config.GROQ_API_KEY and config.allow_llm:
+        try:
+            groq_instance = GroqLLM(config={"api_key": config.GROQ_API_KEY, "model": config.GROQ_MODEL})
+        except Exception as e:
+            print(f"[main] ⚠️ Groq indisponível (continuando com fallback): {e}")
+
+    # 3. Define papeis (Primary vs Fallback)
+    if groq_instance:
+        primary_llm = groq_instance
+        fallback_llm = ollama_instance # Se Groq cair, usa Ollama
+        print(f"[main] LLM Primário: Groq ({config.GROQ_MODEL}) | Fallback: Ollama ({config.OLLAMA_MODEL})")
+    elif ollama_instance:
+        primary_llm = ollama_instance
+        fallback_llm = None # Ollama já é o primário
+        print(f"[main] LLM Primário: Ollama ({config.OLLAMA_MODEL}) | Sem fallback externo.")
+    else:
+        print("[main] ❌ ERRO: Nenhum LLM disponível. O sistema funcionará apenas com comandos locais.")
 
     llm_manager = LLMManager(primary_llm=primary_llm, fallback_llm=fallback_llm, context=context)
 

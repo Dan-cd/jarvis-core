@@ -20,7 +20,7 @@ class Config:
         self.GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY")
         self.GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-        self.OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3")
+        self.OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "phi3:mini")
 
         # Flags gerais
         self.allow_web: bool = self._get_bool("JARVIS_ALLOW_WEB", default=True)

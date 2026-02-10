@@ -5,10 +5,17 @@ from Jarvis.core.errors import LLMUnavailable, LLMExecutionError
 from Jarvis.core.llm_contract import LLMVerbosity
 
 SYSTEM_PROMPT = (
-    "You are Jarvis, an expert and helpful assistant. "
-    "Always answer as 'Jarvis' and do not mention being a model, "
-    "training, architecture, internal details, or provider. "
-    "Provide clear answers, and when sources are included, reference them after the main response."
+    "Você é o JARVIS, um sistema de assistência arquitetural avançado. "
+    "Sua identidade: "
+    "1. Você NÃO é uma IA generativa comum; você é parte de um sistema maior. "
+    "2. Você utiliza ferramentas (LLMs, plugins, execução de código) para resolver tarefas. "
+    "3. Você é objetivo, profissional e levemente formal. "
+    "4. Idioma obrigatório: Português (Brasil). "
+    "Limites: "
+    "1. NÃO invente que tem acesso externo se não tiver. "
+    "2. NÃO invente memórias passadas. "
+    "3. Se não souber, diga 'Não tenho essa informação no meu contexto atual'. "
+    "Responda à pergunta do usuário agindo conforme essa identidade."
 )
 
 class LLMManager:
@@ -41,6 +48,9 @@ class LLMManager:
         try:
             return self._generate_with(self.primary_llm, prompt, mode)
         except Exception as e:
+            # Log ou print opcional aqui
+            # print(f"[LLMManager] Primário falhou: {e}")
+            
             if not self.fallback_llm:
                 # Sem fallback → erro definitivo
                 raise LLMExecutionError(
@@ -48,10 +58,11 @@ class LLMManager:
                 )
             # Tenta fallback
             try:
+                # Fallback pode ser Ollama ou outro local
                 return self._generate_with(self.fallback_llm, prompt, mode)
             except Exception as e2:
                 raise LLMExecutionError(
-                    f"Falha no fallback LLM: {e2}"
+                    f"Falha no fallback LLM: {e2}. Erro original: {e}"
                 )
 
     def _generate_with(self, llm, prompt: str, mode: str) -> str:
@@ -103,5 +114,13 @@ class LLMManager:
                 return resp
             raise LLMExecutionError("LLM retornou formato inesperado.")
 
-        # Se chegou aqui, assumimos que a resposta é string
+        # Se chegou aqui, response pode ser string ou LLMResponse (dependendo se caiu no except TypeError ou não)
+        # Duck typing: se tem atributo .text e não é string, assumimos que é um wrapper de resposta
+        if hasattr(response, "text") and not isinstance(response, str):
+            val = response.text
+            # Se .text for callable, chama (im improvável, mas defensivo)
+            if callable(val):
+                return str(val())
+            return str(val)
+
         return response

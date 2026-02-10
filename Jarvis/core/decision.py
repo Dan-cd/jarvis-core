@@ -21,8 +21,8 @@ class DecisionPath(Enum):
 class Decision:
     def __init__(
         self,
-        path,
-        payload,
+        path=None,
+        payload=None,
         requires_web=False,
         reason=None,
         outcome=None

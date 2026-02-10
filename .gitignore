@@ -93,4 +93,7 @@ Jarvis/data/cache/
 # Test files
 testando.txt
 test*.txt
+pdfs/
+pdf*
+mais.pdf
 

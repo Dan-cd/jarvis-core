@@ -33,6 +33,20 @@ class WebPlugin(Plugin):
     INTENT = IntentType.WEB_FETCH
     cache = WebCache()
 
+    # Blacklist de domínios (anúncios, trackers e lixo técnico)
+    BLACKLIST_DOMAINS = {
+        "duckduckgo.com", "bing.com", "google.com", "y.js", "doubleclick.net",
+        "adservice.google.com", "googleadservices.com", "adnxs.com", "taboola.com",
+        "outbrain.com", "amazon-adsystem.com", "facebook.com/tr", "adsystem",
+        "analytics", "tracking", "pixel", "ad_domain"
+    }
+
+    # Palavras-chave de lixo ou anúncios
+    BLACKLIST_KEYWORDS = {
+        "patrocinado", "patrocinados", "anúncio", "anuncio", "ads", "advertisement",
+        "sponsored", "promoção", "oferta", "compre agora", "venda", "shopping"
+    }
+
     def execute(self, action: ActionRequest, dry_run: bool = False) -> ActionResult:
         if dry_run:
             return ActionResult(
@@ -71,8 +85,10 @@ class WebPlugin(Plugin):
             # faz a busca real
             result = self._fetch(web_request)
 
-            # armazena no cache
-            WebPlugin.cache.set(web_request.query, result)
+            # Qualificação Final: Se o resultado retornado for "Nenhum resultado", 
+            # não salvamos no cache para permitir novas tentativas se o scraper falhar temporariamente.
+            if result.content and "Nenhum resultado" not in result.content:
+                WebPlugin.cache.set(web_request.query, result)
 
             return ActionResult(
                 success=True,
@@ -98,7 +114,7 @@ class WebPlugin(Plugin):
         query = (
             (action.params or {}).get("query")
             or (action.params or {}).get("url")
-            or action.intent.raw
+            or (action.intent.raw if action.intent else None)
         )
         # Normaliza queries iniciadas por verbos comuns (ex: "pesquise", "procure")
         try:
@@ -106,7 +122,7 @@ class WebPlugin(Plugin):
             query = query.strip()
             # remove verbos iniciais como 'pesquise', 'procure', 'pesquisar', 'buscar', 'busca'
             query = re.sub(r'^(pesquise|pesquisar|procure|procura|procurem|procura-se|buscar|busca)\b\s*', '', query, flags=re.I)
-            # remove frases iniciais como 'o que é', 'oque é', 'qual é'
+            # remove frases iniciais como 'o que é', 'oque é', 'o que|oque', 'qual é|qual'
             query = re.sub(r'^(o que é|oque é|o que|oque|qual é|qual)\b\s*', '', query, flags=re.I)
             query = query.strip(' ?')
         except Exception:
@@ -115,10 +131,11 @@ class WebPlugin(Plugin):
             return None
         return WebRequest(query=query)
 
+
     def _fetch(self, req: WebRequest) -> WebResult:
         """
         Faz a requisição na API externa (DuckDuckGo por padrão)
-        e converte para WebResult de forma padronizada.
+        e converte para WebResult de forma padronizada com filtragem.
         """
         response = requests.get(
             "https://api.duckduckgo.com/",
@@ -135,92 +152,180 @@ class WebPlugin(Plugin):
         response.raise_for_status()
         data = response.json()
 
-        # Lista de fontes (lista para padronização)
-        sources: list[str] = []
-        if data.get("AbstractSource"):
-            sources.append(data["AbstractSource"])
-
-        # Função utilitária para tentar extrair texto de RelatedTopics recursivamente
-        def extract_from_related(topics) -> list[str]:
-            texts: list[str] = []
-            if not topics:
-                return texts
-            for item in topics:
-                if isinstance(item, dict):
-                    if item.get("Text"):
-                        texts.append(item["Text"])
-                    # pode ter sub-topics
-                    if item.get("Topics"):
-                        texts.extend(extract_from_related(item.get("Topics")))
-            return texts
-
-        # 1) Prefer AbstractText
-        if data.get("AbstractText"):
+        # 1) Prefer AbstractText (Geralmente alta qualidade)
+        if data.get("AbstractText") and not self._is_trash(data.get("Heading", ""), data["AbstractText"], data.get("AbstractURL", "")):
             return WebResult(
                 query=req.query,
                 content=data["AbstractText"],
-                sources=sources or ["duckduckgo"],
-                confidence=0.8,
+                sources=[data.get("AbstractSource") or "duckduckgo"],
+                confidence=0.9,
                 is_summary=True,
                 is_partial=False
             )
 
-        # 2) Heading
-        if data.get("Heading"):
-            return WebResult(
-                query=req.query,
-                content=data["Heading"],
-                sources=sources or ["duckduckgo"],
-                confidence=0.4,
-                is_summary=False,
-                is_partial=True
-            )
-
-        # 3) Results (lista de dicionários com 'Text')
+        # Se não tem Abstract, tentamos coletar múltiplos resultados qualificados
+        qualified_results = []
+        
+        # 2) Results
         if data.get("Results") and isinstance(data.get("Results"), list):
             for r in data.get("Results"):
                 if isinstance(r, dict) and r.get("Text"):
-                    return WebResult(
-                        query=req.query,
-                        content=r.get("Text"),
-                        sources=sources or ["duckduckgo"],
-                        confidence=0.6,
-                        is_summary=False,
-                        is_partial=True
-                    )
+                    url = r.get("FirstURL", "")
+                    text = r.get("Text", "")
+                    if not self._is_trash("", text, url):
+                        qualified_results.append(f"Fonte: {url}\n{text}")
 
-        # 4) RelatedTopics
-        related = data.get("RelatedTopics")
-        texts = extract_from_related(related)
-        if texts:
-            # concatena os primeiros 2 textos como resumo parcial
-            excerpt = "\n\n".join(texts[:2])
+        # 3) RelatedTopics
+        related = data.get("RelatedTopics") or []
+        for item in related:
+            if isinstance(item, dict) and item.get("Text"):
+                url = item.get("FirstURL", "")
+                text = item.get("Text", "")
+                if not self._is_trash("", text, url):
+                    qualified_results.append(f"Fonte: {url}\n{text}")
+
+        if qualified_results:
+            # Retorna os top 2 qualificados
             return WebResult(
                 query=req.query,
-                content=excerpt,
-                sources=sources or ["duckduckgo"],
-                confidence=0.5,
+                content="\n\n".join(qualified_results[:2]),
+                sources=["duckduckgo-api"],
+                confidence=0.7,
                 is_summary=False,
                 is_partial=True
             )
 
-        # Se chegamos aqui, nada útil foi encontrado — logar JSON bruto para depuração
+        # 4) Fallback: Scraping HTML simples (html.duckduckgo.com)
         try:
-            log_path = Path("data/logs/web_debug.log")
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            with log_path.open("a", encoding="utf-8") as lf:
-                lf.write(f"--- {req.query} @ {datetime.now().isoformat()}\n")
-                lf.write("RAW JSON:\n")
-                lf.write(str(data))
-                lf.write("\n\n")
+            return self._scrape_html(req)
         except Exception:
             pass
 
         return WebResult(
             query=req.query,
-            content="Nenhum resultado relevante encontrado.",
-            sources=sources or ["duckduckgo"],
+            content="Nenhum resultado qualificado encontrado.",
+            sources=["duckduckgo"],
             confidence=0.1,
             is_summary=False,
             is_partial=True
         )
+
+    def _scrape_html(self, req: WebRequest) -> WebResult:
+        import re
+        from urllib.parse import unquote
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"
+        }
+        
+        resp = requests.post(
+            "https://html.duckduckgo.com/html/",
+            data={"q": req.query},
+            headers=headers,
+            timeout=10
+        )
+        resp.raise_for_status()
+        html = resp.text
+
+        # Extração agnóstica a ordem
+        matches = re.findall(r'<a[^>]+href="([^"]+)"[^]*class="[^"]*result__a[^"]*"[^]*>(.*?)</a>', html)
+        if not matches:
+             matches = re.findall(r'<a[^>]+class="[^"]*result__a[^"]*"[^]*href="([^"]+)"[^]*>(.*?)</a>', html)
+
+        links = matches
+        snippets = re.findall(r'<a[^>]+class="[^"]*result__snippet[^"]*"[^]*href="[^"]+">(.*?)</a>', html)
+        if not snippets:
+            snippets = re.findall(r'<a[^>]+href="[^"]+"[^]*class="[^"]*result__snippet[^"]*"[^]*>(.*?)</a>', html)
+
+        final_text_parts = []
+        count = 0
+        limit = 4 # Analisamos mais para filtrar ads
+
+        for i in range(min(len(links), len(snippets), 10)):
+            raw_url = links[i][0]
+            title = re.sub(r'<[^>]+>', '', links[i][1])
+            snippet = re.sub(r'<[^>]+>', '', snippets[i])
+            
+            # Unquote DDG wrapper
+            url = raw_url
+            if "uddg=" in url:
+                try:
+                    url = unquote(url.split("uddg=")[1].split("&")[0])
+                except: pass
+
+            # Limpeza e Filtragem
+            url = self._clean_url(url)
+            if self._is_trash(title, snippet, url):
+                continue
+
+            # Verificação Semântica Simples: 
+            # Se a query for longa, exige que ao menos um termo significativo esteja no resultado
+            if not self._is_relevant(req.query, title, snippet):
+                continue
+
+            final_text_parts.append(f"Título: {title}\nURL: {url}\nResumo: {snippet}")
+            count += 1
+            if count >= 3: break
+
+        if final_text_parts:
+            return WebResult(
+                query=req.query,
+                content="\n\n".join(final_text_parts),
+                sources=["duckduckgo-html"],
+                confidence=0.8,
+                is_summary=False,
+                is_partial=True
+            )
+        
+        raise Exception("Filtros removeram todos os resultados.")
+
+    def _clean_url(self, url: str) -> str:
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        try:
+            parsed = urlparse(url)
+            if not parsed.netloc: return url
+            # Remove trackers comuns
+            qs = parse_qs(parsed.query)
+            clean_qs = {k: v for k, v in qs.items() if not k.startswith('utm_') and k not in {'ref', 'fbclid', 'gclid'}}
+            query_string = urlencode(clean_qs, doseq=True)
+            return urlunparse(parsed._replace(query=query_string))
+        except:
+            return url
+
+    def _is_trash(self, title: str, content: str, url: str) -> bool:
+        from urllib.parse import urlparse
+        try:
+            domain = urlparse(url).netloc.lower()
+        except:
+            domain = ""
+        
+        # 1. Blacklist de domínios
+        for black in self.BLACKLIST_DOMAINS:
+            if black in domain: return True
+        
+        # 2. Blacklist de keywords no conteúdo
+        text = f"{title} {content}".lower()
+        for kw in self.BLACKLIST_KEYWORDS:
+            if kw in text: return True
+            
+        # 3. URLs técnicas óbvias
+        if domain.endswith(".js") or "/ads/" in url or "ad_domain" in url:
+            return True
+            
+        return False
+
+    def _is_relevant(self, query: str, title: str, snippet: str) -> bool:
+        """
+        Heurística de relevância semântica:
+        Verifica se termos importantes da query aparecem no resultado.
+        """
+        query_terms = [t.lower() for t in query.split() if len(t) > 3]
+        if not query_terms: return True # Query muito curta, aceita qualquer coisa qualificada
+        
+        text = f"{title} {snippet}".lower()
+        matches = [t for t in query_terms if t in text]
+        
+        # Exige que ao menos 30% dos termos significativos estejam presentes
+        return len(matches) / len(query_terms) >= 0.3
+
+
